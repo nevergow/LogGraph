@@ -1,0 +1,44 @@
+# Environment — contains secrets, never commit
+.env
+.env.local
+.env.*.local
+
+# Go
+loggraph-server/server
+loggraph-server/server.exe
+loggraph-server/tmp/
+
+# Node
+loggraph-web/node_modules/
+loggraph-web/dist/
+loggraph-web/dist-ssr/
+
+# Python
+loggraph-ai/.venv/
+loggraph-ai/venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Vite
+*.vite-temp
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code session state
+.playwright-mcp/
+.remember/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
