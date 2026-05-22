@@ -131,7 +131,7 @@ function handleSelectPerson(name: string) {
           <span class="text-white font-bold text-xs">LG</span>
         </div>
         <span class="font-semibold text-xs sm:text-sm tracking-tight text-slate-800">LogGraph</span>
-        <span class="hidden sm:inline text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">v0.3</span>
+        <span class="hidden sm:inline text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">v0.5</span>
       </div>
       <div class="flex items-center gap-0.5 sm:gap-1">
         <!-- Mobile panel toggles -->

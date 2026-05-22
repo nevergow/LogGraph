@@ -5,6 +5,22 @@ All notable changes to LogGraph will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-22
+
+### Added
+
+- **Project View** — new default homepage with blocks grouped by `#project` tag into collapsible accordion cards
+- **Segmented control** — Projects | Timeline toggle in the navigation bar for view switching
+- **Vertical timeline axis** — 2px gray line with status-colored dots (blue/emerald/red) on the left side of each timeline card
+- **Done status de-emphasis** — completed blocks get line-through, gray text, and reduced opacity
+- **Touch drag tooltip** — frosted-glass bubble shows the timestamp of the nearest block when dragging on the timeline axis
+
+### Changed
+
+- Default view is now Project View instead of Timeline View
+- Left sidebar hidden in Project View (shown only in Timeline View)
+- Markdown headings (`##`, `###`) no longer incorrectly parsed as project tags
+
 ## [0.4.0] — 2026-05-22
 
 ### Added
