@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Block } from './types'
 import LeftSidebar from './components/LeftSidebar.vue'
 import CenterTimeline from './components/CenterTimeline.vue'
+import ProjectView from './components/ProjectView.vue'
 import RightGraphPanel from './components/RightGraphPanel.vue'
 import SmartInput from './components/SmartInput.vue'
 import WebhookSettings from './components/WebhookSettings.vue'
@@ -13,9 +14,15 @@ import { useNodes } from './composables/useNodes'
 const { blocks, hasMore, loading, filters, selectedBlockId, fetchBlocks, createBlock, updateBlock, loadMore, setFilter } = useBlocks()
 const { projects, people, fetchProjects, fetchPeople } = useNodes()
 
+const currentView = ref<'project' | 'timeline'>('project')
 const showWebhooks = ref(false)
 const showAI = ref(false)
 const editingBlock = ref<Block | null>(null)
+
+function navigateToProject(project: string) {
+  setFilter('project', project)
+  currentView.value = 'timeline'
+}
 
 // ── Responsive ──
 const screenSize = ref<'mobile' | 'tablet' | 'desktop'>('desktop')
@@ -173,8 +180,46 @@ function handleSelectPerson(name: string) {
       </div>
     </header>
 
+    <!-- Segmented control -->
+    <div class="px-3 py-1.5 bg-white border-b border-slate-200/60 flex justify-center shrink-0">
+      <div class="inline-flex bg-slate-100 rounded-lg p-0.5">
+        <button
+          class="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
+          :class="currentView === 'project' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'"
+          @click="currentView = 'project'"
+        >
+          Projects
+        </button>
+        <button
+          class="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
+          :class="currentView === 'timeline' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'"
+          @click="currentView = 'timeline'"
+        >
+          Timeline
+        </button>
+      </div>
+    </div>
+
     <!-- Main content area -->
     <div class="flex-1 flex overflow-hidden">
+      <!-- Project View (default) -->
+      <template v-if="currentView === 'project'">
+        <ProjectView
+          :screen-size="screenSize"
+          :blocks="blocks"
+          :loading="loading"
+          :has-more="hasMore"
+          :selected-id="selectedBlockId"
+          @load-more="loadMore"
+          @select="id => selectedBlockId = id"
+          @edit="handleEdit"
+          @toggle-status="handleToggleStatus"
+          @navigate-to-project="navigateToProject"
+        />
+      </template>
+
+      <!-- Timeline View -->
+      <template v-else>
       <!-- Desktop layout: 3 columns with resize handles -->
       <template v-if="screenSize === 'desktop'">
         <LeftSidebar
@@ -253,6 +298,7 @@ function handleSelectPerson(name: string) {
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
         />
+      </template>
       </template>
     </div>
 
