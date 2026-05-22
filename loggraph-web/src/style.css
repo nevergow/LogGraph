@@ -71,3 +71,22 @@ html, body, #app {
   transform: translateX(-16px);
 }
 
+/* Done status: line-through + gray for completed blocks */
+.block-done .prose {
+  text-decoration: line-through;
+  color: #9ca3af;
+  opacity: 0.7;
+}
+.block-done .prose * {
+  text-decoration: line-through;
+  color: #9ca3af !important;
+}
+
+/* Timeline tooltip fade-out */
+.tooltip-fade-leave-active {
+  transition: opacity 1s ease;
+}
+.tooltip-fade-leave-to {
+  opacity: 0;
+}
+

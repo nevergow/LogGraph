@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import type { Block } from '../types'
 import { renderMarkdown } from '../composables/useMarkdown'
 
@@ -32,8 +32,58 @@ function toggleExpand(id: string) {
   } else {
     expandedIds.value.add(id)
   }
-  // trigger reactivity
   expandedIds.value = new Set(expandedIds.value)
+}
+
+// ── Touch drag tooltip ──
+const tooltipVisible = ref(false)
+const tooltipTime = ref('')
+const tooltipY = ref(0)
+let tooltipTimer: ReturnType<typeof setTimeout> | null = null
+
+onUnmounted(() => {
+  if (tooltipTimer) clearTimeout(tooltipTimer)
+})
+
+function nodeColor(s: string): string {
+  if (s === 'completed') return 'bg-emerald-400'
+  if (s === 'blocked') return 'bg-red-400'
+  return 'bg-blue-400'
+}
+
+function onTimelineTouchMove(e: TouchEvent, list: Block[]) {
+  const touch = e.touches[0]
+  tooltipY.value = touch.clientY
+  const container = document.getElementById('timeline-scroll')
+  if (!container) return
+  const cards = container.querySelectorAll('.timeline-card')
+  let nearest: Block | null = null
+  let minDist = Infinity
+  cards.forEach((card, i) => {
+    const rect = card.getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    const dist = Math.abs(touch.clientY - midY)
+    if (dist < minDist) {
+      minDist = dist
+      nearest = list[i] || null
+    }
+  })
+  if (nearest) {
+    tooltipTime.value = formatTime(nearest.created_at)
+    tooltipVisible.value = true
+  }
+}
+
+function onTimelineTouchEnd() {
+  if (tooltipTimer) clearTimeout(tooltipTimer)
+  tooltipTimer = setTimeout(() => {
+    tooltipVisible.value = false
+  }, 1000)
+}
+
+function tooltipStyle(): Record<string, string> {
+  const maxY = typeof window !== 'undefined' ? window.innerHeight - 60 : 600
+  return { top: Math.min(tooltipY.value, maxY) + 'px', right: '12px' }
 }
 
 function applyStatusFilter(v: string) {
@@ -123,7 +173,7 @@ function formatTime(ts: string): string {
     </div>
 
     <!-- Timeline -->
-    <div class="flex-1 overflow-y-auto px-4 py-3">
+    <div id="timeline-scroll" class="flex-1 overflow-y-auto px-4 py-3">
       <div v-if="hasMore" class="text-center pb-3">
         <button
           class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40 font-medium"
@@ -134,43 +184,78 @@ function formatTime(ts: string): string {
         </button>
       </div>
 
-      <div class="space-y-2">
+      <div class="space-y-0">
         <div
           v-for="block in visibleBlocks"
           :key="block.id"
-          class="bg-white rounded-xl shadow-sm px-4 py-3 cursor-pointer transition-all duration-150 hover:shadow-md"
-          :class="{ 'ring-2 ring-blue-400 shadow-md': selectedId === block.id }"
-          @click="emit('select', block.id)"
-          @dblclick="emit('edit', block.id)"
+          class="timeline-card flex gap-3"
         >
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span
-                class="text-[11px] px-2 py-0.5 rounded-md font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1"
-                :class="statusBadge(block.status)"
-                :title="'Click to cycle: Active → Done → Blocked → Active'"
-                @click.stop="emit('toggle-status', block.id, block.status)"
-              >
-                {{ statusLabel(block.status) }}
-              </span>
-              <span class="text-[11px] text-slate-400 font-medium">{{ block.user_id }}</span>
-            </div>
-            <span class="text-[11px] text-slate-400 shrink-0">{{ formatTime(block.created_at) }}</span>
-          </div>
+          <!-- Vertical timeline axis -->
           <div
-            class="text-sm sm:text-base leading-relaxed text-slate-700 prose prose-sm max-w-none"
-            :class="{ 'max-h-[300px] overflow-hidden relative': !expandedIds.has(block.id) }"
-            v-html="renderContent(block.content)"
-          />
-          <button
-            v-if="block.content.length > 200"
-            class="text-xs text-blue-600 hover:text-blue-800 mt-1 font-medium"
-            @click.stop="toggleExpand(block.id)"
+            class="w-8 shrink-0 flex flex-col items-center relative cursor-pointer"
+            @touchstart.passive="() => {}"
+            @touchmove.prevent="onTimelineTouchMove($event, visibleBlocks)"
+            @touchend="onTimelineTouchEnd"
           >
-            {{ expandedIds.has(block.id) ? '收起' : '展开阅读' }}
-          </button>
+            <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-slate-200 -translate-x-1/2" />
+            <div
+              class="relative z-10 w-2.5 h-2.5 rounded-full mt-3 shrink-0 ring-2 ring-white"
+              :class="nodeColor(block.status)"
+            />
+          </div>
+
+          <!-- Card -->
+          <div class="flex-1 min-w-0 pb-2">
+            <div
+              class="bg-white rounded-xl shadow-sm px-4 py-3 cursor-pointer transition-all duration-150 hover:shadow-md"
+              :class="{
+                'ring-2 ring-blue-400 shadow-md': selectedId === block.id,
+                'block-done': block.status === 'completed'
+              }"
+              @click="emit('select', block.id)"
+              @dblclick="emit('edit', block.id)"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="text-[11px] px-2 py-0.5 rounded-md font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1"
+                    :class="statusBadge(block.status)"
+                    :title="'Click to cycle: Active → Done → Blocked → Active'"
+                    @click.stop="emit('toggle-status', block.id, block.status)"
+                  >
+                    {{ statusLabel(block.status) }}
+                  </span>
+                  <span class="text-[11px] text-slate-400 font-medium">{{ block.user_id }}</span>
+                </div>
+                <span class="text-[11px] text-slate-400 shrink-0">{{ formatTime(block.created_at) }}</span>
+              </div>
+              <div
+                class="text-sm sm:text-base leading-relaxed text-slate-700 prose prose-sm max-w-none"
+                :class="{ 'max-h-[300px] overflow-hidden relative': !expandedIds.has(block.id) }"
+                v-html="renderContent(block.content)"
+              />
+              <button
+                v-if="block.content.length > 200"
+                class="text-xs text-blue-600 hover:text-blue-800 mt-1 font-medium"
+                @click.stop="toggleExpand(block.id)"
+              >
+                {{ expandedIds.has(block.id) ? '收起' : '展开阅读' }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- Touch drag tooltip -->
+      <Teleport to="body">
+        <div
+          v-if="tooltipVisible"
+          class="fixed z-50 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-lg shadow-lg text-xs font-mono text-slate-700 border border-white/50 pointer-events-none transition-opacity"
+          :style="tooltipStyle()"
+        >
+          {{ tooltipTime }}
+        </div>
+      </Teleport>
 
       <div v-if="visibleBlocks.length === 0 && !loading" class="text-center py-16 text-slate-400 text-sm">
         <div class="text-2xl mb-2">-</div>
