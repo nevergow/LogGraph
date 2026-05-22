@@ -96,28 +96,24 @@ function renderContent(text: string): string {
           class="bg-white rounded-xl shadow-sm overflow-hidden"
         >
           <!-- Project header -->
-          <button
-            class="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
-            @click="toggleProject(project)"
+          <div
+            class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
+            @click="emit('navigate-to-project', project)"
           >
             <div class="flex items-center gap-2.5">
               <span
                 class="w-2 h-2 rounded-full shrink-0"
                 :class="nodeColor(projectBlocks[0]?.status || 'active')"
               />
-              <span class="font-semibold text-sm text-slate-800">#{{ project }}</span>
+              <span class="font-semibold text-sm text-slate-800">{{ project }}</span>
               <span class="text-[11px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
                 {{ projectBlocks.length }}
               </span>
             </div>
-            <div class="flex items-center gap-2">
-              <button
-                class="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
-                @click.stop="emit('navigate-to-project', project)"
-                title="Filter timeline by this project"
-              >
-                Filter
-              </button>
+            <button
+              class="flex items-center gap-2"
+              @click.stop="toggleProject(project)"
+            >
               <svg
                 class="w-4 h-4 text-slate-400 transition-transform duration-200"
                 :class="{ 'rotate-180': !collapsedProjects.has(project) }"
@@ -125,8 +121,8 @@ function renderContent(text: string): string {
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
-            </div>
-          </button>
+            </button>
+          </div>
 
           <!-- Project blocks -->
           <div

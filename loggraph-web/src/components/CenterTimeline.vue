@@ -9,6 +9,7 @@ const props = defineProps<{
   hasMore: boolean
   selectedId: string | null
   screenSize?: 'mobile' | 'tablet' | 'desktop'
+  projects?: { name: string; id: string }[]
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +22,7 @@ const emit = defineEmits<{
 
 const hideCompleted = ref(false)
 const statusFilter = ref('')
+const projectFilter = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
 const showFilters = ref(false)
@@ -90,6 +92,10 @@ function applyStatusFilter(v: string) {
   statusFilter.value = v
   emit('filter-change', 'status', v || undefined)
 }
+function applyProjectFilter(v: string) {
+  projectFilter.value = v
+  emit('filter-change', 'project', v || undefined)
+}
 function applyDateFilter() {
   emit('filter-change', 'since', dateFrom.value ? new Date(dateFrom.value).toISOString() : undefined)
   emit('filter-change', 'until', dateTo.value ? new Date(dateTo.value + 'T23:59:59').toISOString() : undefined)
@@ -156,6 +162,16 @@ function formatTime(ts: string): string {
         </select>
 
         <div class="w-px h-4 bg-slate-200" />
+        <select
+          class="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-500 outline-none focus:border-blue-400 transition-colors max-w-[140px]"
+          :value="projectFilter"
+          @change="applyProjectFilter((($event.target as HTMLSelectElement).value))"
+        >
+          <option value="">All projects</option>
+          <option v-for="p in props.projects" :key="p.name" :value="p.name">{{ p.name }}</option>
+        </select>
+
+        <div class="w-px h-4 bg-slate-200" />
         <input
           type="date" :value="dateFrom"
           @change="dateFrom = ($event.target as HTMLInputElement).value; applyDateFilter()"
@@ -192,7 +208,7 @@ function formatTime(ts: string): string {
         >
           <!-- Vertical timeline axis -->
           <div
-            class="w-8 shrink-0 flex flex-col items-center relative cursor-pointer"
+            class="w-14 shrink-0 flex flex-col items-center relative cursor-pointer"
             @touchstart.passive="() => {}"
             @touchmove.prevent="onTimelineTouchMove($event, visibleBlocks)"
             @touchend="onTimelineTouchEnd"
@@ -202,6 +218,7 @@ function formatTime(ts: string): string {
               class="relative z-10 w-2.5 h-2.5 rounded-full mt-3 shrink-0 ring-2 ring-white"
               :class="nodeColor(block.status)"
             />
+            <span class="relative z-10 text-[9px] text-slate-400 mt-0.5 tabular-nums leading-none whitespace-nowrap">{{ formatTime(block.created_at) }}</span>
           </div>
 
           <!-- Card -->
@@ -227,7 +244,6 @@ function formatTime(ts: string): string {
                   </span>
                   <span class="text-[11px] text-slate-400 font-medium">{{ block.user_id }}</span>
                 </div>
-                <span class="text-[11px] text-slate-400 shrink-0">{{ formatTime(block.created_at) }}</span>
               </div>
               <div
                 class="text-sm sm:text-base leading-relaxed text-slate-700 prose prose-sm max-w-none"
