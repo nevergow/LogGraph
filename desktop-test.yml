@@ -1,0 +1,145 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e7]: LG
+      - generic [ref=e8]: LogGraph
+      - generic [ref=e9]: v0.3
+    - generic [ref=e10]:
+      - button "AI" [ref=e304]:
+        - img [ref=e12]
+        - generic [ref=e14]: AI
+      - button "Webhooks" [ref=e305]:
+        - img [ref=e16]
+        - generic [ref=e19]: Webhooks
+  - generic [ref=e20]:
+    - complementary [ref=e306]:
+      - generic [ref=e309]: Filters
+      - generic [ref=e310]:
+        - generic [ref=e311]: Projects / Standards 4
+        - list [ref=e312]:
+          - listitem [ref=e313] [cursor=pointer]:
+            - generic [ref=e315]: "#Aurora"
+          - listitem [ref=e316] [cursor=pointer]:
+            - generic [ref=e318]: "#项目Alpha"
+          - listitem [ref=e319] [cursor=pointer]:
+            - generic [ref=e321]: "#GB38031"
+            - generic [ref=e322]: std
+          - listitem [ref=e323] [cursor=pointer]:
+            - generic [ref=e325]: "#ISO16750"
+            - generic [ref=e326]: std
+        - generic [ref=e327]: People 2
+        - list [ref=e328]:
+          - listitem [ref=e329] [cursor=pointer]:
+            - generic [ref=e331]: "@李工"
+          - listitem [ref=e332] [cursor=pointer]:
+            - generic [ref=e334]: "@王工"
+    - main [ref=e336]:
+      - generic [ref=e337]:
+        - generic [ref=e338] [cursor=pointer]:
+          - checkbox "Hide done" [ref=e339]
+          - generic [ref=e340]: Hide done
+        - generic [ref=e341]: "11"
+        - combobox [ref=e343]:
+          - option "All status" [selected]
+          - option "Active"
+          - option "Completed"
+          - option "Blocked"
+        - textbox "From date" [ref=e345]
+        - generic [ref=e346]: "-"
+        - textbox "To date" [ref=e347]
+      - generic [ref=e349]:
+        - generic [ref=e350] [cursor=pointer]:
+          - generic [ref=e351]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e352]': Active
+            - generic [ref=e354]: system
+            - generic [ref=e355]: 05-22 07:59:01
+          - paragraph [ref=e356]: "### ddd asfagaflgafgag"
+        - generic [ref=e357] [cursor=pointer]:
+          - generic [ref=e358]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e359]': Active
+            - generic [ref=e361]: system
+            - generic [ref=e362]: 05-22 07:58:29
+          - paragraph [ref=e363]: "# dd"
+        - generic [ref=e364] [cursor=pointer]:
+          - generic [ref=e365]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e366]': Active
+            - generic [ref=e368]: system
+            - generic [ref=e369]: 05-21 21:42:57
+          - paragraph [ref=e370]: "# yiu **f**"
+        - generic [ref=e371] [cursor=pointer]:
+          - generic [ref=e372]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e373]': Active
+            - generic [ref=e375]: system
+            - generic [ref=e376]: 05-21 21:27:23
+          - paragraph [ref=e377]: ^95a06a6f-17d2-4efe-9668-44950b2d7310 dd
+        - generic [ref=e378] [cursor=pointer]:
+          - generic [ref=e379]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e380]': Active
+            - generic [ref=e382]: system
+            - generic [ref=e383]: 05-21 21:24:59
+          - paragraph [ref=e384]: "#Aurora"
+        - generic [ref=e385] [cursor=pointer]:
+          - generic [ref=e386]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e387]': Active
+            - generic [ref=e389]: 系统
+            - generic [ref=e390]: 05-21 21:21:22
+          - paragraph [ref=e391]: "#项目Alpha 软件版本V2.3已部署 @王工 测试环境就绪"
+        - generic [ref=e392] [cursor=pointer]:
+          - generic [ref=e393]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e394]': Active
+            - generic [ref=e396]: 张工
+            - generic [ref=e397]: 05-21 21:21:22
+          - paragraph [ref=e398]:
+            - text: "#GB38031"
+            - deletion [ref=e399]: 设备已修复
+            - text: 继续测试 预计明天完成
+        - generic [ref=e400] [cursor=pointer]:
+          - generic [ref=e401]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e402]': Active
+            - generic [ref=e404]: 赵工
+            - generic [ref=e405]: 05-21 21:21:22
+          - paragraph [ref=e406]: "#ISO16750 温度循环测试进行中 @李工 @王工"
+        - generic [ref=e407] [cursor=pointer]:
+          - generic [ref=e408]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e409]': Blocked
+            - generic [ref=e411]: 张工
+            - generic [ref=e412]: 05-21 21:21:22
+          - paragraph [ref=e413]: "#GB38031 [BLOCK] 测试设备故障 等待维修中"
+        - generic [ref=e414] [cursor=pointer]:
+          - generic [ref=e415]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e416]': Active
+            - generic [ref=e418]: 张工
+            - generic [ref=e419]: 05-21 21:21:22
+          - paragraph [ref=e420]: "#GB38031 电池包振动测试开始 准备阶段完成"
+        - generic [ref=e421] [cursor=pointer]:
+          - generic [ref=e422]:
+            - 'generic "Click to cycle: Active → Done → Blocked → Active" [ref=e423]': Done
+            - generic [ref=e425]: system
+            - generic [ref=e426]: 05-21 21:21:02
+          - paragraph [ref=e427]:
+            - text: "#GB38031"
+            - deletion [ref=e428]: 振动测试完成
+            - text: 数据已归档 @王工 参考 ^a1b2c3d4-e5f6-7890-abcd-ef1234567890 方案
+    - complementary [ref=e430]:
+      - generic [ref=e431]: Click a block or select a project to see its graph
+  - generic [ref=e147]:
+    - button "Formatting toolbar" [ref=e149]:
+      - img [ref=e150]
+    - generic [ref=e155]:
+      - button "B" [ref=e156] [cursor=pointer]
+      - button "I" [ref=e157] [cursor=pointer]
+      - button "S" [ref=e158] [cursor=pointer]:
+        - generic [ref=e159]: S
+      - button "H" [ref=e161] [cursor=pointer]
+      - button "Bullet list" [ref=e162] [cursor=pointer]:
+        - img [ref=e163]
+      - button "Inline code" [ref=e165] [cursor=pointer]:
+        - img [ref=e166]
+      - button "Blockquote" [ref=e168] [cursor=pointer]:
+        - img [ref=e169]
+      - button "#" [ref=e172] [cursor=pointer]
+      - button "@" [ref=e173] [cursor=pointer]
+      - button "^" [ref=e174] [cursor=pointer]
+    - generic [ref=e152]:
+      - textbox "#project @person ^reference — Enter to send" [active] [ref=e153]: hello world
+      - button "Send" [ref=e154]
