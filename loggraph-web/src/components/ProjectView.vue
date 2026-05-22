@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Block } from '../types'
-import { renderMarkdown } from '../composables/useMarkdown'
+import BlockCard from './BlockCard.vue'
 
 const props = defineProps<{
   blocks: Block[]
@@ -17,6 +17,8 @@ const emit = defineEmits<{
   edit: [id: string]
   'toggle-status': [id: string, current: string]
   'navigate-to-project': [project: string]
+  archive: [id: string]
+  delete: [id: string]
 }>()
 
 const collapsedProjects = ref<Set<string>>(new Set())
@@ -30,33 +32,37 @@ function toggleProject(name: string) {
   collapsedProjects.value = new Set(collapsedProjects.value)
 }
 
-const projectGroups = computed(() => {
+interface ProjectGroup {
+  name: string
+  blocks: Block[]
+  counts: { active: number; completed: number; blocked: number }
+  allDone: boolean
+}
+
+const projectGroups = computed<ProjectGroup[]>(() => {
   const map = new Map<string, Block[]>()
   for (const b of props.blocks) {
-    // Match #tag but not markdown headings (##, ###, etc.)
     const match = b.content.match(/(?:^|\s)#([^\s#][^\s]*)/)
     const project = match ? match[1] : 'Unfiled'
     if (!map.has(project)) map.set(project, [])
     map.get(project)!.push(b)
   }
-  return [...map.entries()].sort((a, b) => {
-    if (a[0] === 'Unfiled') return 1
-    if (b[0] === 'Unfiled') return -1
-    return a[0].localeCompare(b[0])
-  })
+  return [...map.entries()]
+    .map(([name, blocks]) => {
+      const counts = { active: 0, completed: 0, blocked: 0 }
+      for (const b of blocks) {
+        if (b.status === 'active') counts.active++
+        else if (b.status === 'completed') counts.completed++
+        else if (b.status === 'blocked') counts.blocked++
+      }
+      return { name, blocks, counts, allDone: counts.active === 0 && blocks.length > 0 }
+    })
+    .sort((a, b) => {
+      if (a.name === 'Unfiled') return 1
+      if (b.name === 'Unfiled') return -1
+      return a.name.localeCompare(b.name)
+    })
 })
-
-function statusBadge(s: string): string {
-  if (s === 'completed') return 'bg-emerald-100 text-emerald-700'
-  if (s === 'blocked') return 'bg-red-100 text-red-700'
-  return 'bg-blue-100 text-blue-700'
-}
-
-function statusLabel(s: string): string {
-  if (s === 'completed') return 'Done'
-  if (s === 'blocked') return 'Blocked'
-  return 'Active'
-}
 
 function nodeColor(s: string): string {
   if (s === 'completed') return 'bg-emerald-400'
@@ -70,9 +76,6 @@ function formatTime(ts: string): string {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function renderContent(text: string): string {
-  return renderMarkdown(text)
-}
 </script>
 
 <template>
@@ -91,32 +94,49 @@ function renderContent(text: string): string {
 
       <div class="space-y-4">
         <div
-          v-for="[project, projectBlocks] in projectGroups"
-          :key="project"
+          v-for="group in projectGroups"
+          :key="group.name"
           class="bg-white rounded-xl shadow-sm overflow-hidden"
+          :class="{ 'opacity-70': group.allDone }"
         >
           <!-- Project header -->
           <div
             class="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
-            @click="emit('navigate-to-project', project)"
+            :class="{ 'bg-slate-50/50': group.allDone }"
+            @click="emit('navigate-to-project', group.name)"
           >
             <div class="flex items-center gap-2.5">
               <span
                 class="w-2 h-2 rounded-full shrink-0"
-                :class="nodeColor(projectBlocks[0]?.status || 'active')"
+                :class="group.allDone ? 'bg-gray-300' : nodeColor(group.blocks[0]?.status || 'active')"
               />
-              <span class="font-semibold text-sm text-slate-800">{{ project }}</span>
-              <span class="text-[11px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
-                {{ projectBlocks.length }}
-              </span>
+              <span
+                class="font-semibold text-sm"
+                :class="group.allDone ? 'text-gray-400' : 'text-slate-800'"
+              >{{ group.name }}</span>
+              <!-- Status count bubbles -->
+              <div class="flex items-center gap-1">
+                <span
+                  v-if="group.counts.active > 0"
+                  class="text-[11px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-medium"
+                >{{ group.counts.active }} Active</span>
+                <span
+                  v-if="group.counts.completed > 0"
+                  class="text-[11px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium"
+                >{{ group.counts.completed }} Done</span>
+                <span
+                  v-if="group.counts.blocked > 0"
+                  class="text-[11px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded-full font-medium"
+                >{{ group.counts.blocked }} Blocked</span>
+              </div>
             </div>
             <button
               class="flex items-center gap-2"
-              @click.stop="toggleProject(project)"
+              @click.stop="toggleProject(group.name)"
             >
               <svg
                 class="w-4 h-4 text-slate-400 transition-transform duration-200"
-                :class="{ 'rotate-180': !collapsedProjects.has(project) }"
+                :class="{ 'rotate-180': !collapsedProjects.has(group.name) }"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24"
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -126,35 +146,21 @@ function renderContent(text: string): string {
 
           <!-- Project blocks -->
           <div
-            v-if="!collapsedProjects.has(project)"
-            class="border-t border-slate-100 divide-y divide-slate-50"
+            v-if="!collapsedProjects.has(group.name)"
+            class="border-t border-slate-100 px-3 py-2 space-y-2"
           >
-            <div
-              v-for="block in projectBlocks"
+            <BlockCard
+              v-for="block in group.blocks"
               :key="block.id"
-              class="px-4 py-2.5 cursor-pointer transition-colors hover:bg-slate-50"
-              :class="{ 'bg-blue-50/50': selectedId === block.id }"
-              @click="emit('select', block.id)"
-              @dblclick="emit('edit', block.id)"
-            >
-              <div class="flex items-center justify-between mb-1">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="text-[10px] px-1.5 py-0.5 rounded-md font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1"
-                    :class="statusBadge(block.status)"
-                    @click.stop="emit('toggle-status', block.id, block.status)"
-                  >
-                    {{ statusLabel(block.status) }}
-                  </span>
-                  <span class="text-[11px] text-slate-400 font-medium">{{ block.user_id }}</span>
-                </div>
-                <span class="text-[11px] text-slate-400 shrink-0">{{ formatTime(block.created_at) }}</span>
-              </div>
-              <div
-                class="text-sm leading-relaxed text-slate-600 prose prose-sm max-w-none"
-                v-html="renderContent(block.content)"
-              />
-            </div>
+              :block="block"
+              :selected="selectedId === block.id"
+              :screen-size="screenSize"
+              @select="id => emit('select', id)"
+              @edit="id => emit('edit', id)"
+              @toggle-status="(id, current) => emit('toggle-status', id, current)"
+              @archive="id => emit('archive', id)"
+              @delete="id => emit('delete', id)"
+            />
           </div>
         </div>
       </div>

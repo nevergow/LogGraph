@@ -27,7 +27,7 @@ export const blocksApi = {
     return api.get<CursorPage<Block>>(`/blocks${q ? `?${q}` : ''}`)
   },
 
-  create(data: { user_id?: string; content: string }) {
+  create(data: { user_id?: string; content: string; metadata?: Record<string, any> }) {
     return api.post<Block>('/blocks', data)
   },
 
@@ -35,7 +35,7 @@ export const blocksApi = {
     return api.get<Block>(`/blocks/${id}`)
   },
 
-  update(id: string, data: { content?: string; status?: string }) {
+  update(id: string, data: { content?: string; status?: string; metadata?: Record<string, any> }) {
     return api.patch<Block>(`/blocks/${id}`, data)
   },
 

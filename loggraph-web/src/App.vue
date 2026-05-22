@@ -8,11 +8,14 @@ import RightGraphPanel from './components/RightGraphPanel.vue'
 import SmartInput from './components/SmartInput.vue'
 import WebhookSettings from './components/WebhookSettings.vue'
 import AIPanel from './components/AIPanel.vue'
+import ToastContainer from './components/ToastContainer.vue'
 import { useBlocks } from './composables/useBlocks'
 import { useNodes } from './composables/useNodes'
+import { useToast } from './composables/useToast'
 
-const { blocks, hasMore, loading, filters, selectedBlockId, fetchBlocks, createBlock, updateBlock, loadMore, setFilter } = useBlocks()
+const { blocks, visibleBlocks, hasMore, loading, filters, selectedBlockId, fetchBlocks, createBlock, updateBlock, deleteBlock, undoDelete, archiveBlock, loadMore, setFilter, hasActiveFilter, clearAllFilters } = useBlocks()
 const { projects, people, fetchProjects, fetchPeople } = useNodes()
+const { showToast } = useToast()
 
 const currentView = ref<'project' | 'timeline'>('project')
 const showWebhooks = ref(false)
@@ -85,8 +88,8 @@ onUnmounted(() => {
 
 // ── Actions ──
 
-async function handleCreate(content: string) {
-  await createBlock(content)
+async function handleCreate(content: string, metadata?: Record<string, any>) {
+  await createBlock(content, metadata)
   fetchProjects()
   fetchPeople()
 }
@@ -96,8 +99,8 @@ function handleEdit(id: string) {
   if (b) editingBlock.value = b
 }
 
-async function handleUpdate(id: string, content: string) {
-  await updateBlock(id, { content })
+async function handleUpdate(id: string, content: string, metadata?: Record<string, any>) {
+  await updateBlock(id, { content, ...(metadata && Object.keys(metadata).length > 0 ? { metadata } : {}) })
   editingBlock.value = null
   fetchProjects()
   fetchPeople()
@@ -110,6 +113,16 @@ async function handleToggleStatus(id: string, current: string) {
 
 function handleCancelEdit() {
   editingBlock.value = null
+}
+
+function handleArchive(id: string) {
+  archiveBlock(id)
+  showToast('已归档 1 条日志')
+}
+
+function handleDelete(id: string) {
+  deleteBlock(id)
+  showToast('已删除 1 条日志', { label: '撤销', handler: () => undoDelete(id) })
 }
 
 function handleSelectProject(name: string) {
@@ -131,7 +144,7 @@ function handleSelectPerson(name: string) {
           <span class="text-white font-bold text-xs">LG</span>
         </div>
         <span class="font-semibold text-xs sm:text-sm tracking-tight text-slate-800">LogGraph</span>
-        <span class="hidden sm:inline text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">v0.5</span>
+        <span class="hidden sm:inline text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">v0.6</span>
       </div>
       <div class="flex items-center gap-0.5 sm:gap-1">
         <!-- Mobile panel toggles -->
@@ -180,8 +193,9 @@ function handleSelectPerson(name: string) {
       </div>
     </header>
 
-    <!-- Segmented control -->
-    <div class="px-3 py-1.5 bg-white border-b border-slate-200/60 flex justify-center shrink-0">
+    <!-- Segmented control + filter indicator -->
+    <div class="px-3 py-1.5 bg-white border-b border-slate-200/60 flex items-center shrink-0">
+      <div class="flex-1" />
       <div class="inline-flex bg-slate-100 rounded-lg p-0.5">
         <button
           class="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
@@ -198,6 +212,18 @@ function handleSelectPerson(name: string) {
           Timeline
         </button>
       </div>
+      <div class="flex-1 flex justify-end">
+        <button
+          v-if="hasActiveFilter"
+          class="flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors font-medium"
+          @click="clearAllFilters()"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Clear filter
+        </button>
+      </div>
     </div>
 
     <!-- Main content area -->
@@ -206,7 +232,7 @@ function handleSelectPerson(name: string) {
       <template v-if="currentView === 'project'">
         <ProjectView
           :screen-size="screenSize"
-          :blocks="blocks"
+          :blocks="visibleBlocks"
           :loading="loading"
           :has-more="hasMore"
           :selected-id="selectedBlockId"
@@ -215,6 +241,8 @@ function handleSelectPerson(name: string) {
           @edit="handleEdit"
           @toggle-status="handleToggleStatus"
           @navigate-to-project="navigateToProject"
+          @archive="handleArchive"
+          @delete="handleDelete"
         />
       </template>
 
@@ -237,16 +265,22 @@ function handleSelectPerson(name: string) {
         />
         <CenterTimeline
           :screen-size="screenSize"
-          :blocks="blocks"
+          :blocks="visibleBlocks"
           :loading="loading"
           :has-more="hasMore"
           :selected-id="selectedBlockId"
           :projects="projects"
+          :status-filter="filters.status"
+          :project-filter="filters.project"
+          :since-date="filters.since"
+          :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @edit="handleEdit"
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
+          @archive="handleArchive"
+          @delete="handleDelete"
         />
         <div
           class="w-1 cursor-col-resize bg-transparent hover:bg-blue-300 transition-colors shrink-0"
@@ -273,16 +307,22 @@ function handleSelectPerson(name: string) {
         />
         <CenterTimeline
           :screen-size="screenSize"
-          :blocks="blocks"
+          :blocks="visibleBlocks"
           :loading="loading"
           :has-more="hasMore"
           :selected-id="selectedBlockId"
           :projects="projects"
+          :status-filter="filters.status"
+          :project-filter="filters.project"
+          :since-date="filters.since"
+          :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @edit="handleEdit"
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
+          @archive="handleArchive"
+          @delete="handleDelete"
         />
       </template>
 
@@ -290,16 +330,22 @@ function handleSelectPerson(name: string) {
       <template v-else>
         <CenterTimeline
           :screen-size="screenSize"
-          :blocks="blocks"
+          :blocks="visibleBlocks"
           :loading="loading"
           :has-more="hasMore"
           :selected-id="selectedBlockId"
           :projects="projects"
+          :status-filter="filters.status"
+          :project-filter="filters.project"
+          :since-date="filters.since"
+          :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @edit="handleEdit"
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
+          @archive="handleArchive"
+          @delete="handleDelete"
         />
       </template>
       </template>
@@ -354,6 +400,7 @@ function handleSelectPerson(name: string) {
       </div>
     </Teleport>
 
+    <ToastContainer />
     <WebhookSettings v-if="showWebhooks" @close="showWebhooks = false" />
     <AIPanel
       v-if="showAI"

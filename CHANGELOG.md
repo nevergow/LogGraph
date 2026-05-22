@@ -5,6 +5,26 @@ All notable changes to LogGraph will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-05-22
+
+### Added
+
+- **Priority tags** — `!!` or `!high` syntax in SmartInput automatically sets `priority: high` on blocks, strips control chars from stored content; High-priority blocks render a subtle red badge
+- **Desktop hover actions** — mouse hover on cards reveals a mini toolbar with Complete, Archive, and Delete buttons using `group-hover` fade-in
+- **Mobile swipe gestures** — swipe left on cards reveals red Delete zone, swipe right reveals green Complete + amber Archive zones; 25px dead zone on left edge preserves system back gesture
+- **Toast + undo system** — delete triggers a bottom toast with "已删除 1 条日志 [撤销]" for 3 seconds; clicking undo restores the block before the API call fires
+- **Project status counters** — project headers show per-status colored bubbles (Active blue, Done emerald, Blocked red), only when count > 0
+- **Project auto-dimming** — projects where all blocks are Done auto-dim to gray text; new Active block instantly reactivates
+- **Global filter clear** — filter indicator with Clear button appears in the nav bar when any filter is active
+- **Dual-view filtering** — filter state is shared between Project and Timeline views
+
+### Changed
+
+- **BlockCard component** — extracted shared card rendering (markdown, expand/collapse, status badge, toolbar) used by both CenterTimeline and ProjectView
+- **Filter state sync** — Timeline dropdowns now bind directly to global filter state via props instead of local refs, eliminating view-switch reset bug
+- **Archived blocks** — blocks with `metadata.isArchived = true` are hidden from main views via `visibleBlocks` computed
+- **API types** — `create` and `update` methods accept `metadata` parameter for priority/archive storage
+
 ## [0.5.1] — 2026-05-22
 
 ### Changed

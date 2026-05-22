@@ -5,8 +5,8 @@ import type { Node, Block } from '../types'
 
 const props = defineProps<{ editingBlock: Block | null }>()
 const emit = defineEmits<{
-  send: [content: string]
-  update: [id: string, content: string]
+  send: [content: string, metadata?: Record<string, any>]
+  update: [id: string, content: string, metadata?: Record<string, any>]
   'cancel-edit': []
 }>()
 
@@ -233,15 +233,45 @@ function trackExpandedCursor() {
   cursorEnd.value = ta.selectionEnd
 }
 
+// ── Priority parsing ──
+
+function parsePriority(content: string): { cleanContent: string; priority: string } {
+  let priority = 'normal'
+  let clean = content.trim()
+
+  const startMatch = clean.match(/^(!!|!high)\s+/)
+  if (startMatch) {
+    priority = 'high'
+    clean = clean.slice(startMatch[0].length)
+  }
+
+  if (priority === 'normal') {
+    const endMatch = clean.match(/\s+(!!|!high)$/)
+    if (endMatch) {
+      priority = 'high'
+      clean = clean.slice(0, endMatch.index)
+    }
+  }
+
+  return { cleanContent: clean.trim(), priority }
+}
+
 // ── Submit ──
 
 function submit() {
   const trimmed = text.value.trim()
   if (!trimmed) return
+
+  const { cleanContent, priority } = parsePriority(trimmed)
+  if (!cleanContent) return
+
+  const metadata: Record<string, any> = {}
+  if (priority === 'high') metadata.priority = 'high'
+
   if (props.editingBlock) {
-    emit('update', props.editingBlock.id, trimmed)
+    emit('update', props.editingBlock.id, cleanContent, metadata)
   } else {
-    emit('send', trimmed)
+    emit('send', cleanContent, metadata)
   }
   text.value = ''
   showSuggest.value = false

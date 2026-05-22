@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import type { Block } from '../types'
-import { renderMarkdown } from '../composables/useMarkdown'
+import BlockCard from './BlockCard.vue'
 
 const props = defineProps<{
   blocks: Block[]
@@ -10,6 +10,10 @@ const props = defineProps<{
   selectedId: string | null
   screenSize?: 'mobile' | 'tablet' | 'desktop'
   projects?: { name: string; id: string }[]
+  statusFilter?: string
+  projectFilter?: string
+  sinceDate?: string
+  untilDate?: string
 }>()
 
 const emit = defineEmits<{
@@ -18,24 +22,14 @@ const emit = defineEmits<{
   edit: [id: string]
   'toggle-status': [id: string, current: string]
   'filter-change': [key: string, value: string | undefined]
+  archive: [id: string]
+  delete: [id: string]
 }>()
 
 const hideCompleted = ref(false)
-const statusFilter = ref('')
-const projectFilter = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
 const showFilters = ref(false)
-const expandedIds = ref<Set<string>>(new Set())
-
-function toggleExpand(id: string) {
-  if (expandedIds.value.has(id)) {
-    expandedIds.value.delete(id)
-  } else {
-    expandedIds.value.add(id)
-  }
-  expandedIds.value = new Set(expandedIds.value)
-}
 
 // ── Touch drag tooltip ──
 const tooltipVisible = ref(false)
@@ -88,14 +82,6 @@ function tooltipStyle(): Record<string, string> {
   return { top: Math.min(tooltipY.value, maxY) + 'px', right: '12px' }
 }
 
-function applyStatusFilter(v: string) {
-  statusFilter.value = v
-  emit('filter-change', 'status', v || undefined)
-}
-function applyProjectFilter(v: string) {
-  projectFilter.value = v
-  emit('filter-change', 'project', v || undefined)
-}
 function applyDateFilter() {
   emit('filter-change', 'since', dateFrom.value ? new Date(dateFrom.value).toISOString() : undefined)
   emit('filter-change', 'until', dateTo.value ? new Date(dateTo.value + 'T23:59:59').toISOString() : undefined)
@@ -105,22 +91,6 @@ const visibleBlocks = computed(() => {
   if (!hideCompleted.value) return props.blocks
   return props.blocks.filter(b => b.status !== 'completed')
 })
-
-function renderContent(text: string): string {
-  return renderMarkdown(text)
-}
-
-function statusBadge(s: string): string {
-  if (s === 'completed') return 'bg-emerald-100 text-emerald-700'
-  if (s === 'blocked') return 'bg-red-100 text-red-700'
-  return 'bg-blue-100 text-blue-700'
-}
-
-function statusLabel(s: string): string {
-  if (s === 'completed') return 'Done'
-  if (s === 'blocked') return 'Blocked'
-  return 'Active'
-}
 
 function formatTime(ts: string): string {
   const d = new Date(ts)
@@ -152,8 +122,8 @@ function formatTime(ts: string): string {
         <div class="w-px h-4 bg-slate-200 hidden sm:block" />
         <select
           class="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-500 outline-none focus:border-blue-400 transition-colors"
-          :value="statusFilter"
-          @change="applyStatusFilter((($event.target as HTMLSelectElement).value))"
+          :value="props.statusFilter || ''"
+          @change="emit('filter-change', 'status', ($event.target as HTMLSelectElement).value || undefined)"
         >
           <option value="">All status</option>
           <option value="active">Active</option>
@@ -164,8 +134,8 @@ function formatTime(ts: string): string {
         <div class="w-px h-4 bg-slate-200" />
         <select
           class="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-500 outline-none focus:border-blue-400 transition-colors max-w-[140px]"
-          :value="projectFilter"
-          @change="applyProjectFilter((($event.target as HTMLSelectElement).value))"
+          :value="props.projectFilter || ''"
+          @change="emit('filter-change', 'project', ($event.target as HTMLSelectElement).value || undefined)"
         >
           <option value="">All projects</option>
           <option v-for="p in props.projects" :key="p.name" :value="p.name">{{ p.name }}</option>
@@ -223,41 +193,16 @@ function formatTime(ts: string): string {
 
           <!-- Card -->
           <div class="flex-1 min-w-0 pb-2">
-            <div
-              class="bg-white rounded-xl shadow-sm px-4 py-3 cursor-pointer transition-all duration-150 hover:shadow-md"
-              :class="{
-                'ring-2 ring-blue-400 shadow-md': selectedId === block.id,
-                'block-done': block.status === 'completed'
-              }"
-              @click="emit('select', block.id)"
-              @dblclick="emit('edit', block.id)"
-            >
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="text-[11px] px-2 py-0.5 rounded-md font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1"
-                    :class="statusBadge(block.status)"
-                    :title="'Click to cycle: Active → Done → Blocked → Active'"
-                    @click.stop="emit('toggle-status', block.id, block.status)"
-                  >
-                    {{ statusLabel(block.status) }}
-                  </span>
-                  <span class="text-[11px] text-slate-400 font-medium">{{ block.user_id }}</span>
-                </div>
-              </div>
-              <div
-                class="text-sm sm:text-base leading-relaxed text-slate-700 prose prose-sm max-w-none"
-                :class="{ 'max-h-[300px] overflow-hidden relative': !expandedIds.has(block.id) }"
-                v-html="renderContent(block.content)"
-              />
-              <button
-                v-if="block.content.length > 200"
-                class="text-xs text-blue-600 hover:text-blue-800 mt-1 font-medium"
-                @click.stop="toggleExpand(block.id)"
-              >
-                {{ expandedIds.has(block.id) ? '收起' : '展开阅读' }}
-              </button>
-            </div>
+            <BlockCard
+              :block="block"
+              :selected="selectedId === block.id"
+              :screen-size="screenSize"
+              @select="id => emit('select', id)"
+              @edit="id => emit('edit', id)"
+              @toggle-status="(id, current) => emit('toggle-status', id, current)"
+              @archive="id => emit('archive', id)"
+              @delete="id => emit('delete', id)"
+            />
           </div>
         </div>
       </div>
