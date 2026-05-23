@@ -8,6 +8,8 @@ import RightGraphPanel from './components/RightGraphPanel.vue'
 import SmartInput from './components/SmartInput.vue'
 import WebhookSettings from './components/WebhookSettings.vue'
 import AIPanel from './components/AIPanel.vue'
+import CommandPalette from './components/CommandPalette.vue'
+import CalendarHeatmap from './components/CalendarHeatmap.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import { useBlocks } from './composables/useBlocks'
 import { useNodes } from './composables/useNodes'
@@ -20,17 +22,18 @@ const { showToast } = useToast()
 const currentView = ref<'project' | 'timeline'>('project')
 const showWebhooks = ref(false)
 const showAI = ref(false)
+const showGraph = ref(false)
+const showHeaderMenu = ref(false)
+const showHeatmap = ref(false)
 const editingBlock = ref<Block | null>(null)
 
 function navigateToProject(project: string) {
   setFilter('project', project)
-  currentView.value = 'timeline'
 }
 
 // ── Responsive ──
 const screenSize = ref<'mobile' | 'tablet' | 'desktop'>('desktop')
 const showLeftOverlay = ref(false)
-const showRightOverlay = ref(false)
 
 function updateScreenSize() {
   const w = window.innerWidth
@@ -41,25 +44,22 @@ function updateScreenSize() {
 
 // ── Resizable panels (desktop only) ──
 const leftWidth = ref(224)
-const rightWidth = ref(288)
-const dragging = ref<'left' | 'right' | null>(null)
+const dragging = ref(false)
 
 function onResizeMove(e: MouseEvent) {
-  if (dragging.value === 'left') {
+  if (dragging.value) {
     leftWidth.value = Math.max(160, Math.min(400, e.clientX))
-  } else if (dragging.value === 'right') {
-    rightWidth.value = Math.max(200, Math.min(500, window.innerWidth - e.clientX))
   }
 }
 function onResizeUp() {
-  dragging.value = null
+  dragging.value = false
   document.removeEventListener('mousemove', onResizeMove)
   document.removeEventListener('mouseup', onResizeUp)
   document.body.style.cursor = ''
   document.body.style.userSelect = ''
 }
-function startResize(side: 'left' | 'right') {
-  dragging.value = side
+function startResize() {
+  dragging.value = true
   document.addEventListener('mousemove', onResizeMove)
   document.addEventListener('mouseup', onResizeUp)
   document.body.style.cursor = 'col-resize'
@@ -72,9 +72,14 @@ const selectedProjectNodeId = computed(() => {
   return node?.id || null
 })
 
+function onDocumentClick() {
+  if (showHeaderMenu.value) showHeaderMenu.value = false
+}
+
 onMounted(() => {
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
+  document.addEventListener('click', onDocumentClick)
   fetchBlocks(true)
   fetchProjects()
   fetchPeople()
@@ -82,6 +87,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateScreenSize)
+  document.removeEventListener('click', onDocumentClick)
   document.removeEventListener('mousemove', onResizeMove)
   document.removeEventListener('mouseup', onResizeUp)
 })
@@ -133,24 +139,65 @@ function handleSelectPerson(name: string) {
   setFilter('person', name)
   showLeftOverlay.value = false
 }
+
+function handleCommand(action: string) {
+  switch (action) {
+    case 'view-project': currentView.value = 'project'; break
+    case 'view-timeline': currentView.value = 'timeline'; break
+    case 'graph': showGraph.value = true; break
+    case 'ai-report': showAI.value = true; break
+    case 'webhooks': showWebhooks.value = true; break
+    case 'clear-filters': clearAllFilters(); break
+    case 'new-entry': editingBlock.value = null; break
+  }
+}
 </script>
 
 <template>
   <div class="h-full flex flex-col">
-    <!-- Header -->
-    <header class="h-12 border-b border-slate-200/60 flex items-center px-3 sm:px-5 shrink-0 bg-white justify-between">
+    <!-- Header (consolidated: logo + segmented control + actions) -->
+    <header class="h-11 border-b border-gray-200/60 flex items-center px-3 sm:px-5 shrink-0 bg-white justify-between">
       <div class="flex items-center gap-2 sm:gap-3">
-        <div class="w-7 h-7 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+        <div class="w-7 h-7 bg-brand-500 rounded-sm flex items-center justify-center">
           <span class="text-white font-bold text-xs">LG</span>
         </div>
-        <span class="font-semibold text-xs sm:text-sm tracking-tight text-slate-800">LogGraph</span>
-        <span class="hidden sm:inline text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">v0.6</span>
+        <span class="font-semibold text-xs sm:text-sm tracking-tight text-gray-800">LogGraph</span>
+
+        <!-- Segmented control (in header) -->
+        <div class="ml-2 inline-flex bg-gray-100 rounded-sm p-0.5">
+          <button
+            class="px-3 py-1 text-xs font-medium rounded-md transition-all"
+            :class="currentView === 'project' ? 'bg-white shadow-sm ring-1 ring-gray-200/60 text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+            @click="currentView = 'project'"
+          >
+            Projects
+          </button>
+          <button
+            class="px-3 py-1 text-xs font-medium rounded-md transition-all"
+            :class="currentView === 'timeline' ? 'bg-white shadow-sm ring-1 ring-gray-200/60 text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+            @click="currentView = 'timeline'"
+          >
+            Timeline
+          </button>
+        </div>
+
+        <!-- Active filter pill -->
+        <button
+          v-if="hasActiveFilter"
+          class="flex items-center gap-1 px-2 py-0.5 text-[11px] text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors font-medium"
+          @click="clearAllFilters()"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Clear
+        </button>
       </div>
       <div class="flex items-center gap-0.5 sm:gap-1">
         <!-- Mobile panel toggles -->
         <button
           v-if="screenSize !== 'desktop'"
-          class="text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-md"
+          class="text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-sm"
           @click="showLeftOverlay = true"
           title="Filters & Projects"
         >
@@ -160,8 +207,8 @@ function handleSelectPerson(name: string) {
         </button>
         <button
           v-if="screenSize !== 'desktop'"
-          class="text-xs text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-md"
-          @click="showRightOverlay = true"
+          class="text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-sm"
+          @click="showGraph = true"
           title="Graph"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,68 +216,102 @@ function handleSelectPerson(name: string) {
           </svg>
         </button>
 
-        <button
-          class="text-xs text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md"
-          @click="showAI = !showAI"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
-          </svg>
-          <span class="hidden sm:inline">AI</span>
-        </button>
-        <button
-          class="text-xs text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md"
-          @click="showWebhooks = !showWebhooks"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span class="hidden sm:inline">Webhooks</span>
-        </button>
+        <!-- Consolidated actions menu -->
+        <div class="relative" @click.stop>
+          <button
+            class="text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-sm"
+            @click="showHeaderMenu = !showHeaderMenu"
+            title="More"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
+          <div
+            v-if="showHeaderMenu"
+            class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-elevated z-50 py-1 min-w-[140px]"
+            @click.stop
+          >
+            <button
+              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              @click="showGraph = true; showHeaderMenu = false"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              Graph
+            </button>
+            <button
+              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              @click="showAI = !showAI; showHeaderMenu = false"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+              AI Report
+            </button>
+            <button
+              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              @click="showWebhooks = !showWebhooks; showHeaderMenu = false"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              </svg>
+              Webhooks
+            </button>
+            <div class="border-t border-gray-100 my-1" />
+            <button
+              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              @click="showHeatmap = !showHeatmap; showHeaderMenu = false"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Activity
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
-    <!-- Segmented control + filter indicator -->
-    <div class="px-3 py-1.5 bg-white border-b border-slate-200/60 flex items-center shrink-0">
-      <div class="flex-1" />
-      <div class="inline-flex bg-slate-100 rounded-lg p-0.5">
-        <button
-          class="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
-          :class="currentView === 'project' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'"
-          @click="currentView = 'project'"
-        >
-          Projects
-        </button>
-        <button
-          class="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
-          :class="currentView === 'timeline' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'"
-          @click="currentView = 'timeline'"
-        >
-          Timeline
-        </button>
-      </div>
-      <div class="flex-1 flex justify-end">
-        <button
-          v-if="hasActiveFilter"
-          class="flex items-center gap-1 px-2 py-1 text-[11px] text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors font-medium"
-          @click="clearAllFilters()"
-        >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Heatmap popover -->
+    <div
+      v-if="showHeatmap"
+      class="fixed top-11 right-4 z-40 bg-white rounded-md shadow-elevated border border-gray-200 p-3 w-80"
+      @click.stop
+    >
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium text-gray-500">Activity</span>
+        <button class="text-gray-400 hover:text-gray-600" @click="showHeatmap = false">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
-          Clear filter
         </button>
       </div>
+      <CalendarHeatmap />
     </div>
+    <div v-if="showHeatmap" class="fixed inset-0 z-30" @click="showHeatmap = false" />
 
     <!-- Main content area -->
     <div class="flex-1 flex overflow-hidden">
-      <!-- Project View (default) -->
-      <template v-if="currentView === 'project'">
+      <!-- Desktop layout: sidebar + content (graph on demand) -->
+      <template v-if="screenSize === 'desktop'">
+        <LeftSidebar
+          :style="{ width: leftWidth + 'px' }"
+          :projects="projects"
+          :people="people"
+          :active-project="filters.project"
+          @select-project="p => setFilter('project', p)"
+          @select-person="p => setFilter('person', p)"
+          @clear-filters="setFilter('project', undefined); setFilter('person', undefined)"
+        />
+        <div
+          class="w-1 cursor-col-resize bg-transparent hover:bg-brand-300 transition-colors shrink-0"
+          @mousedown="startResize()"
+        />
+
         <ProjectView
+          v-if="currentView === 'project'"
           :screen-size="screenSize"
           :blocks="visibleBlocks"
           :loading="loading"
@@ -244,26 +325,8 @@ function handleSelectPerson(name: string) {
           @archive="handleArchive"
           @delete="handleDelete"
         />
-      </template>
-
-      <!-- Timeline View -->
-      <template v-else>
-      <!-- Desktop layout: 3 columns with resize handles -->
-      <template v-if="screenSize === 'desktop'">
-        <LeftSidebar
-          :style="{ width: leftWidth + 'px' }"
-          :projects="projects"
-          :people="people"
-          :active-project="filters.project"
-          @select-project="p => setFilter('project', p)"
-          @select-person="p => setFilter('person', p)"
-          @clear-filters="setFilter('project', undefined); setFilter('person', undefined)"
-        />
-        <div
-          class="w-1 cursor-col-resize bg-transparent hover:bg-blue-300 transition-colors shrink-0"
-          @mousedown="startResize('left')"
-        />
         <CenterTimeline
+          v-else
           :screen-size="screenSize"
           :blocks="visibleBlocks"
           :loading="loading"
@@ -282,19 +345,9 @@ function handleSelectPerson(name: string) {
           @archive="handleArchive"
           @delete="handleDelete"
         />
-        <div
-          class="w-1 cursor-col-resize bg-transparent hover:bg-blue-300 transition-colors shrink-0"
-          @mousedown="startResize('right')"
-        />
-        <RightGraphPanel
-          :style="{ width: rightWidth + 'px' }"
-          :block-id="selectedBlockId"
-          :project-node-id="selectedProjectNodeId"
-          :project-name="filters.project"
-        />
       </template>
 
-      <!-- Tablet layout: left sidebar inline (narrow), center flex-1, right as overlay -->
+      <!-- Tablet layout: global sidebar + content -->
       <template v-else-if="screenSize === 'tablet'">
         <LeftSidebar
           style="width: 180px"
@@ -305,7 +358,24 @@ function handleSelectPerson(name: string) {
           @select-person="p => setFilter('person', p)"
           @clear-filters="setFilter('project', undefined); setFilter('person', undefined)"
         />
+
+        <ProjectView
+          v-if="currentView === 'project'"
+          :screen-size="screenSize"
+          :blocks="visibleBlocks"
+          :loading="loading"
+          :has-more="hasMore"
+          :selected-id="selectedBlockId"
+          @load-more="loadMore"
+          @select="id => selectedBlockId = id"
+          @edit="handleEdit"
+          @toggle-status="handleToggleStatus"
+          @navigate-to-project="navigateToProject"
+          @archive="handleArchive"
+          @delete="handleDelete"
+        />
         <CenterTimeline
+          v-else
           :screen-size="screenSize"
           :blocks="visibleBlocks"
           :loading="loading"
@@ -326,9 +396,25 @@ function handleSelectPerson(name: string) {
         />
       </template>
 
-      <!-- Mobile layout: center only, both panels as overlays -->
+      <!-- Mobile layout: content only, both panels as overlays -->
       <template v-else>
+        <ProjectView
+          v-if="currentView === 'project'"
+          :screen-size="screenSize"
+          :blocks="visibleBlocks"
+          :loading="loading"
+          :has-more="hasMore"
+          :selected-id="selectedBlockId"
+          @load-more="loadMore"
+          @select="id => selectedBlockId = id"
+          @edit="handleEdit"
+          @toggle-status="handleToggleStatus"
+          @navigate-to-project="navigateToProject"
+          @archive="handleArchive"
+          @delete="handleDelete"
+        />
         <CenterTimeline
+          v-else
           :screen-size="screenSize"
           :blocks="visibleBlocks"
           :loading="loading"
@@ -347,7 +433,6 @@ function handleSelectPerson(name: string) {
           @archive="handleArchive"
           @delete="handleDelete"
         />
-      </template>
       </template>
     </div>
 
@@ -368,7 +453,7 @@ function handleSelectPerson(name: string) {
         <div class="absolute inset-0 bg-black/30" @click="showLeftOverlay = false" />
         <aside class="relative w-72 max-w-[85vw] bg-white h-full shadow-xl overflow-y-auto">
           <div class="flex justify-end p-2">
-            <button class="text-slate-400 hover:text-slate-600 text-lg leading-none p-1" @click="showLeftOverlay = false">&times;</button>
+            <button class="text-gray-400 hover:text-gray-600 text-lg leading-none p-1" @click="showLeftOverlay = false">&times;</button>
           </div>
           <LeftSidebar
             :projects="projects"
@@ -381,15 +466,15 @@ function handleSelectPerson(name: string) {
         </aside>
       </div>
 
-      <!-- Right panel overlay -->
+      <!-- Graph slide-over (all screen sizes) -->
       <div
-        v-if="showRightOverlay"
+        v-if="showGraph"
         class="fixed inset-0 z-50 flex justify-end"
       >
-        <div class="absolute inset-0 bg-black/30" @click="showRightOverlay = false" />
-        <aside class="relative w-80 max-w-[85vw] bg-white h-full shadow-xl overflow-y-auto">
+        <div class="absolute inset-0 bg-black/30" @click="showGraph = false" />
+        <aside class="relative w-80 max-w-[85vw] bg-white h-full shadow-elevated overflow-y-auto">
           <div class="flex justify-end p-2">
-            <button class="text-slate-400 hover:text-slate-600 text-lg leading-none p-1" @click="showRightOverlay = false">&times;</button>
+            <button class="text-gray-400 hover:text-gray-600 text-lg leading-none p-1" @click="showGraph = false">&times;</button>
           </div>
           <RightGraphPanel
             :block-id="selectedBlockId"
@@ -401,6 +486,7 @@ function handleSelectPerson(name: string) {
     </Teleport>
 
     <ToastContainer />
+    <CommandPalette @command="handleCommand" />
     <WebhookSettings v-if="showWebhooks" @close="showWebhooks = false" />
     <AIPanel
       v-if="showAI"

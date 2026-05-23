@@ -90,12 +90,12 @@ async function saveSettings() {
         <div class="flex gap-3">
           <button
             class="text-sm font-medium pb-0.5 border-b-2 transition-colors"
-            :class="tab === 'report' ? 'text-purple-600 border-purple-600' : 'text-gray-400 border-transparent hover:text-gray-600'"
+            :class="tab === 'report' ? 'text-brand-600 border-brand-600' : 'text-gray-400 border-transparent hover:text-gray-600'"
             @click="tab = 'report'"
           >Report</button>
           <button
             class="text-sm font-medium pb-0.5 border-b-2 transition-colors"
-            :class="tab === 'settings' ? 'text-purple-600 border-purple-600' : 'text-gray-400 border-transparent hover:text-gray-600'"
+            :class="tab === 'settings' ? 'text-brand-600 border-brand-600' : 'text-gray-400 border-transparent hover:text-gray-600'"
             @click="tab = 'settings'"
           >Settings</button>
         </div>
@@ -109,7 +109,7 @@ async function saveSettings() {
           <input
             v-model="project"
             placeholder="#项目名"
-            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-purple-400"
+            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-brand-400"
             @keydown.enter="generate"
           />
         </div>
@@ -125,12 +125,12 @@ async function saveSettings() {
         </div>
 
         <div class="text-xs text-gray-400" v-if="currentProject && !project">
-          Current filter: <span class="text-purple-600">#{{ currentProject }}</span>
-          <button class="ml-2 text-purple-600 underline" @click="project = currentProject || ''">Use</button>
+          Current filter: <span class="text-brand-600">#{{ currentProject }}</span>
+          <button class="ml-2 text-brand-600 underline" @click="project = currentProject || ''">Use</button>
         </div>
 
         <button
-          class="w-full py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-40 transition-colors"
+          class="w-full py-2 bg-brand-500 text-white text-sm rounded-sm hover:bg-brand-600 disabled:opacity-40 transition-colors"
           :disabled="loading || !project.trim()"
           @click="generate"
         >
@@ -139,7 +139,7 @@ async function saveSettings() {
 
         <div v-if="error" class="text-xs text-red-500 bg-red-50 rounded p-2">{{ error }}</div>
 
-        <div v-if="result" class="bg-gray-50 rounded-lg p-4">
+        <div v-if="result" class="bg-gray-50 rounded-sm p-4">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-gray-500">{{ result.project }}</span>
             <span class="text-[10px] text-gray-400">{{ result.block_count }} blocks · {{ result.period }}</span>
@@ -155,7 +155,7 @@ async function saveSettings() {
           <input
             v-model="settingsBaseUrl"
             placeholder="https://api.deepseek.com/v1"
-            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-purple-400"
+            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-brand-400"
           />
         </div>
         <div>
@@ -164,7 +164,7 @@ async function saveSettings() {
             v-model="settingsApiKey"
             type="password"
             placeholder="sk-..."
-            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-purple-400"
+            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-brand-400"
           />
         </div>
         <div>
@@ -172,12 +172,12 @@ async function saveSettings() {
           <input
             v-model="settingsModel"
             placeholder="deepseek-chat"
-            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-purple-400"
+            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-brand-400"
           />
         </div>
 
         <button
-          class="w-full py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-40 transition-colors"
+          class="w-full py-2 bg-brand-500 text-white text-sm rounded-sm hover:bg-brand-600 disabled:opacity-40 transition-colors"
           :disabled="settingsLoading"
           @click="saveSettings"
         >

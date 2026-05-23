@@ -4,6 +4,57 @@
 @import "@vue-flow/core/dist/theme-default.css";
 @import "highlight.js/styles/github-dark.css";
 
+@theme {
+  /* Brand — warm indigo */
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-200: #c7d2fe;
+  --color-brand-300: #a5b4fc;
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+
+  /* Surface — two surfaces only */
+  --color-surface-0: #ffffff;
+  --color-surface-50: #f8fafc;
+
+  /* Border — single subtle border */
+  --color-border-light: #e2e8f0;
+
+  /* Text */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  /* Semantic — 3 colors: success, danger, and brand handles the rest */
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+
+  /* Typography — 3 sizes */
+  --font-size-caption: 0.6875rem;
+  --font-size-body: 0.8125rem;
+  --font-size-heading: 0.9375rem;
+
+  /* Spacing */
+  --spacing-section: 1.5rem;
+
+  /* Shadow — single elevated shadow, no default card shadow */
+  --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  /* Border radius — 2 sizes: controls (6px), cards (10px) */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+
+  /* Z-index scale */
+  --z-sidebar: 10;
+  --z-overlay: 30;
+  --z-dropdown: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+}
+
 html, body, #app {
   height: 100%;
   margin: 0;
@@ -46,6 +97,25 @@ html, body, #app {
   opacity: 0;
 }
 
+/* Toast spring animation */
+.toast-enter-active {
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.toast-leave-active {
+  transition: all 0.2s ease-in;
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translateX(16px) scale(0.95);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(8px) scale(0.98);
+}
+.toast-move {
+  transition: transform 0.25s ease;
+}
+
 /* Prose overrides */
 .prose img { max-width: 100%; }
 .prose pre { overflow-x: auto; }
@@ -71,15 +141,28 @@ html, body, #app {
   transform: translateX(-16px);
 }
 
-/* Done status: line-through + gray for completed blocks */
+/* Done status: subtle opacity reduction only */
 .block-done .prose {
-  text-decoration: line-through;
-  color: #9ca3af;
-  opacity: 0.7;
+  opacity: 0.4;
 }
-.block-done .prose * {
-  text-decoration: line-through;
-  color: #9ca3af !important;
+
+/* Card list staggered animation */
+.card-list-enter-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.card-list-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.card-list-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.card-list-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.card-list-move {
+  transition: transform 0.25s ease;
 }
 
 /* Timeline tooltip fade-out */
@@ -89,4 +172,3 @@ html, body, #app {
 .tooltip-fade-leave-to {
   opacity: 0;
 }
-

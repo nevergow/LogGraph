@@ -61,11 +61,11 @@ function copyToClipboard(text: string) {
             <input
               v-model="nameInput"
               placeholder="e.g. CI Runner, Lark Bot"
-              class="flex-1 text-sm border border-gray-200 rounded px-2 py-1.5 outline-none focus:border-blue-400"
+              class="flex-1 text-sm border border-gray-200 rounded px-2 py-1.5 outline-none focus:border-brand-400"
               @keydown.enter="generate"
             />
             <button
-              class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-40 shrink-0"
+              class="px-3 py-1.5 bg-brand-500 text-white text-sm rounded-sm hover:bg-brand-600 disabled:opacity-40 shrink-0"
               :disabled="generating || !nameInput.trim()"
               @click="generate"
             >
@@ -79,7 +79,7 @@ function copyToClipboard(text: string) {
         <div v-if="newToken" class="bg-yellow-50 border border-yellow-200 rounded p-3">
           <div class="text-xs font-medium text-yellow-700 mb-1">Token created — copy it now:</div>
           <code class="text-xs break-all bg-yellow-100 px-2 py-1 rounded block mb-2">{{ newToken.token }}</code>
-          <button class="text-xs text-blue-600 hover:text-blue-800" @click="copyToClipboard(newToken.token)">
+          <button class="text-xs text-brand-600 hover:text-brand-800" @click="copyToClipboard(newToken.token)">
             Copy
           </button>
           <button class="text-xs text-gray-400 ml-3" @click="newToken = null">Dismiss</button>
@@ -95,8 +95,8 @@ function copyToClipboard(text: string) {
         </div>
 
         <!-- Lark webhook hint -->
-        <div class="bg-purple-50 rounded p-3">
-          <div class="text-xs font-medium text-purple-700 mb-1">Lark Bot Webhook</div>
+        <div class="bg-brand-50 rounded-sm p-3">
+          <div class="text-xs font-medium text-brand-700 mb-1">Lark Bot Webhook</div>
           <pre class="text-[11px] text-gray-600 overflow-x-auto leading-relaxed"><code>POST {{ baseURL }}/api/v1/webhook/lark
 Authorization: Bearer &lt;token&gt;</code></pre>
           <div class="text-[11px] text-gray-500 mt-1">

@@ -2,6 +2,8 @@
 import { ref, computed, onUnmounted } from 'vue'
 import type { Block } from '../types'
 import BlockCard from './BlockCard.vue'
+import FilterBar from './FilterBar.vue'
+import SkeletonCard from './SkeletonCard.vue'
 
 const props = defineProps<{
   blocks: Block[]
@@ -27,9 +29,6 @@ const emit = defineEmits<{
 }>()
 
 const hideCompleted = ref(false)
-const dateFrom = ref('')
-const dateTo = ref('')
-const showFilters = ref(false)
 
 // ── Touch drag tooltip ──
 const tooltipVisible = ref(false)
@@ -44,7 +43,7 @@ onUnmounted(() => {
 function nodeColor(s: string): string {
   if (s === 'completed') return 'bg-emerald-400'
   if (s === 'blocked') return 'bg-red-400'
-  return 'bg-blue-400'
+  return 'bg-brand-400'
 }
 
 function onTimelineTouchMove(e: TouchEvent, list: Block[]) {
@@ -82,11 +81,6 @@ function tooltipStyle(): Record<string, string> {
   return { top: Math.min(tooltipY.value, maxY) + 'px', right: '12px' }
 }
 
-function applyDateFilter() {
-  emit('filter-change', 'since', dateFrom.value ? new Date(dateFrom.value).toISOString() : undefined)
-  emit('filter-change', 'until', dateTo.value ? new Date(dateTo.value + 'T23:59:59').toISOString() : undefined)
-}
-
 const visibleBlocks = computed(() => {
   if (!hideCompleted.value) return props.blocks
   return props.blocks.filter(b => b.status !== 'completed')
@@ -100,69 +94,36 @@ function formatTime(ts: string): string {
 </script>
 
 <template>
-  <main class="flex-1 flex flex-col overflow-hidden bg-slate-50/50">
+  <main class="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
     <!-- Filter bar -->
-    <div class="px-3 sm:px-4 py-2 border-b border-slate-200 bg-white flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
-      <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none text-slate-500">
-        <input v-model="hideCompleted" type="checkbox" class="rounded border-slate-300" />
-        <span class="hidden sm:inline">Hide done</span>
-      </label>
-      <span class="text-[11px] text-slate-400 tabular-nums">{{ visibleBlocks.length }}</span>
+    <div class="px-3 sm:px-4 py-2 border-b border-gray-200 bg-white flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
+      <FilterBar
+        :count="visibleBlocks.length"
+        :hide-completed="hideCompleted"
+        :status-filter="props.statusFilter"
+        :since-date="props.sinceDate ? props.sinceDate.slice(0, 10) : ''"
+        :until-date="props.untilDate ? props.untilDate.slice(0, 10) : ''"
+        :screen-size="screenSize"
+        @update:hide-completed="hideCompleted = $event"
+        @filter-change="(key, value) => emit('filter-change', key, value)"
+      />
 
-      <!-- Mobile filter toggle -->
-      <button
-        v-if="props.screenSize === 'mobile'"
-        class="text-xs text-blue-600 ml-auto"
-        @click="showFilters = !showFilters"
+      <div class="w-px h-4 bg-gray-200" />
+      <select
+        class="text-xs border border-gray-200 rounded-sm px-2 py-1 bg-white text-gray-500 outline-none focus:border-brand-300 transition-colors max-w-[140px]"
+        :value="props.projectFilter || ''"
+        @change="emit('filter-change', 'project', ($event.target as HTMLSelectElement).value || undefined)"
       >
-        {{ showFilters ? 'Hide' : 'Filters' }}
-      </button>
-
-      <template v-if="props.screenSize !== 'mobile' || showFilters">
-        <div class="w-px h-4 bg-slate-200 hidden sm:block" />
-        <select
-          class="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-500 outline-none focus:border-blue-400 transition-colors"
-          :value="props.statusFilter || ''"
-          @change="emit('filter-change', 'status', ($event.target as HTMLSelectElement).value || undefined)"
-        >
-          <option value="">All status</option>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-          <option value="blocked">Blocked</option>
-        </select>
-
-        <div class="w-px h-4 bg-slate-200" />
-        <select
-          class="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-500 outline-none focus:border-blue-400 transition-colors max-w-[140px]"
-          :value="props.projectFilter || ''"
-          @change="emit('filter-change', 'project', ($event.target as HTMLSelectElement).value || undefined)"
-        >
-          <option value="">All projects</option>
-          <option v-for="p in props.projects" :key="p.name" :value="p.name">{{ p.name }}</option>
-        </select>
-
-        <div class="w-px h-4 bg-slate-200" />
-        <input
-          type="date" :value="dateFrom"
-          @change="dateFrom = ($event.target as HTMLInputElement).value; applyDateFilter()"
-          class="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-500 w-32 outline-none focus:border-blue-400 transition-colors"
-          title="From date"
-        />
-        <span class="text-xs text-slate-300">-</span>
-        <input
-          type="date" :value="dateTo"
-          @change="dateTo = ($event.target as HTMLInputElement).value; applyDateFilter()"
-          class="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-500 w-32 outline-none focus:border-blue-400 transition-colors"
-          title="To date"
-        />
-      </template>
+        <option value="">All projects</option>
+        <option v-for="p in props.projects" :key="p.name" :value="p.name">{{ p.name }}</option>
+      </select>
     </div>
 
     <!-- Timeline -->
     <div id="timeline-scroll" class="flex-1 overflow-y-auto px-4 py-3">
       <div v-if="hasMore" class="text-center pb-3">
         <button
-          class="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-40 font-medium"
+          class="text-xs text-brand-600 hover:text-brand-800 disabled:opacity-40 font-medium"
           :disabled="loading"
           @click="emit('load-more')"
         >
@@ -170,7 +131,10 @@ function formatTime(ts: string): string {
         </button>
       </div>
 
-      <div class="space-y-0">
+      <!-- Skeleton loading (initial load only) -->
+      <SkeletonCard v-if="loading && visibleBlocks.length === 0" :count="4" />
+
+      <TransitionGroup v-else name="card-list" tag="div" class="space-y-0">
         <div
           v-for="block in visibleBlocks"
           :key="block.id"
@@ -183,12 +147,12 @@ function formatTime(ts: string): string {
             @touchmove.prevent="onTimelineTouchMove($event, visibleBlocks)"
             @touchend="onTimelineTouchEnd"
           >
-            <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-slate-200 -translate-x-1/2" />
+            <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-200 -translate-x-1/2" />
             <div
               class="relative z-10 w-2.5 h-2.5 rounded-full mt-3 shrink-0 ring-2 ring-white"
               :class="nodeColor(block.status)"
             />
-            <span class="relative z-10 text-[9px] text-slate-400 mt-0.5 tabular-nums leading-none whitespace-nowrap">{{ formatTime(block.created_at) }}</span>
+            <span class="relative z-10 text-[9px] text-gray-400 mt-0.5 tabular-nums leading-none whitespace-nowrap">{{ formatTime(block.created_at) }}</span>
           </div>
 
           <!-- Card -->
@@ -205,22 +169,25 @@ function formatTime(ts: string): string {
             />
           </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <!-- Touch drag tooltip -->
       <Teleport to="body">
         <div
           v-if="tooltipVisible"
-          class="fixed z-50 px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-lg shadow-lg text-xs font-mono text-slate-700 border border-white/50 pointer-events-none transition-opacity"
+          class="fixed z-50 px-3 py-1.5 bg-gray-900 rounded-sm shadow-elevated text-xs font-mono text-white pointer-events-none transition-opacity"
           :style="tooltipStyle()"
         >
           {{ tooltipTime }}
         </div>
       </Teleport>
 
-      <div v-if="visibleBlocks.length === 0 && !loading" class="text-center py-16 text-slate-400 text-sm">
-        <div class="text-2xl mb-2">-</div>
-        No entries. Type below to get started.
+      <div v-if="visibleBlocks.length === 0 && !loading" class="text-center py-20 text-gray-400">
+        <svg class="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div class="text-sm font-medium text-gray-500 mb-1">No entries yet</div>
+        <div class="text-xs text-gray-400">Type a message below to start logging.</div>
       </div>
     </div>
   </main>
