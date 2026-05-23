@@ -1,24 +1,21 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick, shallowRef } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { nodesApi } from '../api/nodes'
 import { useNodes } from '../composables/useNodes'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
-import type { Node, Block } from '../types'
+import type { Node } from '../types'
 
-const props = defineProps<{ editingBlock: Block | null }>()
 const emit = defineEmits<{
   send: [content: string, metadata?: Record<string, any>]
-  update: [id: string, content: string, metadata?: Record<string, any>]
-  'cancel-edit': []
 }>()
 
 const text = ref('')
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
-const { projects } = useNodes()
+const { projects, fetchProjects } = useNodes()
 
 // ── Priority quadrant ──
 // q1: 紧急重要, q2: 紧急不重要, q3: 不紧急重要, q4: 不紧急不重要
@@ -30,11 +27,6 @@ const quadrantLabels: Record<string, string> = {
   q2: '紧急不重要',
   q3: '不紧急重要',
   q4: '不紧急不重要',
-}
-
-function quadrantLabelShort(v: string): string {
-  const m: Record<string, string> = { q1: 'Q1 紧急重要', q2: 'Q2 紧急不重要', q3: 'Q3 不紧急重要', q4: 'Q4 不紧急不重要' }
-  return m[v] || 'Q3'
 }
 
 // ── Progressive input state ──
@@ -50,7 +42,7 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: { class: 'flex-1 outline-none px-4 py-3 text-base leading-relaxed overflow-y-auto prose prose-sm max-w-none' },
-    handleKeyDown: (_, e) => {
+    handleKeyDown: (_: any, e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault()
         collapse()
@@ -67,11 +59,11 @@ const editor = useEditor({
   },
   onUpdate: () => {
     if (editor.value) {
+      // @ts-ignore - markdown storage from tiptap-markdown
       text.value = editor.value.storage.markdown?.getMarkdown?.() || ''
     }
   },
-  immediatelyRender: false,
-})
+} as any)
 
 function expand() {
   isExpanded.value = true
@@ -86,6 +78,7 @@ function expand() {
 
 function collapse() {
   if (editor.value) {
+    // @ts-ignore
     text.value = editor.value.storage.markdown?.getMarkdown?.() || ''
     editor.value.commands.clearContent()
   }
@@ -249,6 +242,7 @@ function applySuggestion(item: Node) {
 function submit() {
   // In expanded mode, get latest markdown from TipTap
   if (isExpanded.value && editor.value) {
+    // @ts-ignore
     text.value = editor.value.storage.markdown?.getMarkdown?.() || ''
   }
 
@@ -265,11 +259,7 @@ function submit() {
     metadata.priority = 'high'
   }
 
-  if (props.editingBlock) {
-    emit('update', props.editingBlock.id, trimmed, metadata)
-  } else {
-    emit('send', trimmed, metadata)
-  }
+  emit('send', trimmed, metadata)
   text.value = ''
   selectedPriority.value = 'q3'
   selectedProject.value = ''
@@ -278,36 +268,6 @@ function submit() {
   isFullscreen.value = false
   if (editor.value) editor.value.commands.clearContent()
 }
-
-function cancelEdit() {
-  text.value = ''
-  selectedPriority.value = 'q3'
-  selectedProject.value = ''
-  isExpanded.value = false
-  isFullscreen.value = false
-  if (editor.value) editor.value.commands.clearContent()
-  emit('cancel-edit')
-}
-
-// Watch for edit mode
-watch(() => props.editingBlock, (b) => {
-  if (b) {
-    text.value = b.content
-    const q = b.metadata?.quadrant as string
-    selectedPriority.value = (q === 'q1' || q === 'q2' || q === 'q3' || q === 'q4') ? q : 'q3'
-    const projectMatch = b.content.match(/(?:^|\s)#([^\s#][^\s]*)/)
-    selectedProject.value = projectMatch ? projectMatch[1] : ''
-    isExpanded.value = false
-    isFullscreen.value = false
-    nextTick(() => {
-      const ta = textareaRef.value
-      if (ta) {
-        ta.focus()
-        ta.setSelectionRange(ta.value.length, ta.value.length)
-      }
-    })
-  }
-})
 
 // ── File paste (compact mode only) ──
 
@@ -335,6 +295,7 @@ watch(text, autoResize)
 
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
+  fetchProjects()
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
@@ -342,41 +303,35 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-white px-3 py-2 shrink-0 relative safe-area-bottom">
+  <div class="bg-white/80 backdrop-blur-md px-4 py-3 shrink-0 relative safe-area-bottom border-t border-border-subtle">
 
     <!-- Suggest popover (compact mode only) -->
     <div
       v-if="showSuggest && !isExpanded"
-      class="absolute bottom-full left-4 mb-1 w-64 max-h-40 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-elevated z-50"
+      class="absolute bottom-full left-4 mb-2 w-72 max-h-48 overflow-y-auto glass-strong rounded-xl shadow-glass border border-white/50 z-50"
     >
       <div
         v-for="(item, i) in suggestItems"
         :key="item.id"
-        class="px-3 py-2 text-sm cursor-pointer hover:bg-brand-50 flex items-center gap-2 transition-colors"
+        class="px-4 py-3 cursor-pointer hover:bg-brand-50 flex items-center gap-3 transition-colors"
         :class="{ 'bg-brand-50': i === suggestIndex }"
         @click="applySuggestion(item)"
         @mouseenter="suggestIndex = i"
       >
-        <span class="text-xs text-gray-400 w-5 shrink-0 font-mono">{{ triggerChar }}</span>
-        <span class="truncate text-gray-700">{{ item.name }}</span>
-        <span v-if="item.type !== 'custom'" class="text-[10px] text-gray-300 ml-auto">{{ item.type }}</span>
+        <span class="text-xs text-brand-500 w-5 shrink-0 font-mono font-semibold">{{ triggerChar }}</span>
+        <span class="truncate text-text-primary text-sm">{{ item.name }}</span>
+        <span v-if="item.type !== 'custom'" class="text-[10px] text-text-muted ml-auto uppercase tracking-wide">{{ item.type }}</span>
       </div>
     </div>
 
-    <!-- Editing indicator -->
-    <div v-if="editingBlock" class="flex items-center gap-2 mb-1.5">
-      <span class="text-xs text-brand-600 font-medium">Editing</span>
-      <button class="text-xs text-gray-400 hover:text-gray-600 underline" @click="cancelEdit">Cancel</button>
-    </div>
-
     <!-- ── Compact mode ── -->
-    <div v-if="!isExpanded" class="flex items-center gap-2">
+    <div v-if="!isExpanded" class="flex items-center gap-3">
       <button
-        class="shrink-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-sm transition-colors"
+        class="shrink-0 text-text-muted hover:text-brand-600 hover:bg-brand-50 p-2 rounded-xl transition-colors"
         @click="expand"
         title="Expand editor"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
         </svg>
       </button>
@@ -385,34 +340,39 @@ onUnmounted(() => {
         ref="textareaRef"
         v-model="text"
         rows="1"
-        :placeholder="editingBlock ? 'Edit and press Enter to save...' : '#project @person ^reference — Enter to send'"
-        class="flex-1 resize-none outline-none text-sm sm:text-base py-2 px-4 bg-gray-50 rounded-sm border border-gray-200 focus:bg-white focus:border-brand-300 focus:ring-2 focus:ring-brand-50 transition-all placeholder:text-gray-300"
+        placeholder="#project @person ^reference — Enter to send"
+        class="flex-1 resize-none outline-none text-sm py-3 px-5 bg-gradient-to-r from-surface-100 to-surface-50 rounded-2xl border-0 focus:bg-white focus:ring-2 focus:ring-brand-200/50 transition-all placeholder:text-text-muted"
         @click="trackCursor"
         @keyup="trackCursor"
         @select="trackCursor"
         @paste="onPaste"
       />
 
-      <!-- Priority dropdown -->
-      <select v-model="selectedPriority" class="shrink-0 text-[10px] border border-gray-200 rounded-md px-1 py-1 bg-white text-gray-500 outline-none focus:border-brand-300 transition-colors">
-        <option value="q1">Q1 紧急重要</option>
-        <option value="q2">Q2 紧急不重要</option>
-        <option value="q3">Q3 不紧急重要</option>
-        <option value="q4">Q4 不紧急不重要</option>
-      </select>
+      <!-- Priority pills -->
+      <div class="shrink-0 flex items-center gap-1 bg-surface-100 rounded-xl p-1">
+        <button
+          v-for="(_, key) in quadrantLabels"
+          :key="key"
+          class="px-2.5 py-1 text-[10px] font-medium rounded-lg transition-all"
+          :class="selectedPriority === key ? 'bg-brand-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
+          @click="selectedPriority = key as string"
+        >
+          {{ (key as string).toUpperCase() }}
+        </button>
+      </div>
 
       <!-- Project dropdown -->
-      <select v-model="selectedProject" class="shrink-0 text-[11px] border border-gray-200 rounded-md px-1.5 py-1 bg-white text-gray-500 outline-none focus:border-brand-300 transition-colors max-w-[110px]">
+      <select v-model="selectedProject" class="shrink-0 text-[11px] border-0 bg-surface-100 rounded-xl px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-brand-200/50 transition-colors max-w-[100px]">
         <option value="">No project</option>
         <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>
       </select>
 
       <button
-        class="shrink-0 px-4 py-2 bg-brand-500 text-white text-sm rounded-sm hover:bg-brand-600 transition-colors disabled:opacity-30 font-medium"
+        class="shrink-0 px-5 py-2.5 bg-gradient-to-r from-brand-500 to-violet-500 text-white text-sm rounded-xl hover:shadow-lg hover:shadow-brand-500/25 transition-all disabled:opacity-30 font-semibold"
         :disabled="!text.trim()"
         @click="submit"
       >
-        {{ editingBlock ? 'Update' : 'Send' }}
+        Send
       </button>
     </div>
 
@@ -420,25 +380,25 @@ onUnmounted(() => {
     <Teleport to="body">
       <div
         v-if="isExpanded"
-        class="fixed inset-0 z-40 bg-black/40"
-        :class="{ 'bg-black/60': isFullscreen }"
+        class="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+        :class="{ 'bg-black/40': isFullscreen }"
         @click="collapse"
       />
       <div
         v-if="isExpanded"
-        class="fixed z-50 bg-white shadow-2xl flex flex-col overflow-hidden"
+        class="fixed z-50 glass-strong shadow-glass border border-white/50 flex flex-col overflow-hidden"
         :class="isFullscreen
-          ? 'inset-4 rounded-xl'
-          : 'bottom-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl sm:w-full rounded-xl'"
+          ? 'inset-4 rounded-2xl'
+          : 'bottom-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl sm:w-full rounded-2xl'"
         :style="isFullscreen ? {} : { maxHeight: '80vh', paddingBottom: 'env(safe-area-inset-bottom)' }"
       >
         <!-- Toolbar header -->
-        <div class="flex items-center gap-0.5 px-4 py-2 border-b border-gray-100 shrink-0">
+        <div class="flex items-center gap-1 px-4 py-3 border-b border-border-subtle shrink-0">
           <button class="toolbar-btn font-bold" @click="tipTapBold" title="Bold">B</button>
           <button class="toolbar-btn italic" @click="tipTapItalic" title="Italic">I</button>
           <button class="toolbar-btn" @click="tipTapStrike" title="Strikethrough"><span class="line-through">S</span></button>
 
-          <span class="w-px h-5 bg-gray-200 mx-1" />
+          <span class="w-px h-5 bg-border-light mx-2" />
 
           <button class="toolbar-btn font-semibold text-[15px]" :class="{ 'text-brand-600 bg-brand-50': editor?.isActive('heading', { level: 2 }) }" @click="tipTapHeading" title="Heading">H</button>
           <button class="toolbar-btn" :class="{ 'text-brand-600 bg-brand-50': editor?.isActive('bulletList') }" @click="tipTapBulletList" title="Bullet list">
@@ -457,7 +417,7 @@ onUnmounted(() => {
             </svg>
           </button>
 
-          <span class="w-px h-5 bg-gray-200 mx-1" />
+          <span class="w-px h-5 bg-border-light mx-2" />
 
           <button class="toolbar-btn text-brand-600 font-semibold text-xs" @click="tipTapInsertTag('#')" title="Insert project tag">#</button>
           <button class="toolbar-btn text-brand-600 font-semibold text-xs" @click="tipTapInsertTag('@')" title="Insert person mention">@</button>
@@ -476,7 +436,7 @@ onUnmounted(() => {
           </button>
 
           <!-- Collapse -->
-          <button class="toolbar-btn text-gray-400" @click="collapse" title="Collapse">
+          <button class="toolbar-btn text-text-muted" @click="collapse" title="Collapse">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -487,26 +447,33 @@ onUnmounted(() => {
         <EditorContent :editor="editor" class="flex flex-1 overflow-hidden" />
 
         <!-- Footer -->
-        <div class="px-4 py-2 border-t border-gray-100 flex items-center justify-end shrink-0 gap-2">
-          <div class="flex items-center gap-1.5">
-            <select v-model="selectedPriority" class="text-[10px] border border-gray-200 rounded-md px-1 py-1 bg-white text-gray-500 outline-none focus:border-brand-300 transition-colors">
-              <option value="q1">Q1 紧急重要</option>
-              <option value="q2">Q2 紧急不重要</option>
-              <option value="q3">Q3 不紧急重要</option>
-              <option value="q4">Q4 不紧急不重要</option>
-            </select>
-            <select v-model="selectedProject" class="text-[11px] border border-gray-200 rounded-md px-1.5 py-1 bg-white text-gray-500 outline-none focus:border-brand-300 transition-colors max-w-[110px]">
+        <div class="px-4 py-3 border-t border-border-subtle flex items-center justify-between shrink-0 gap-3">
+          <div class="flex items-center gap-2">
+            <!-- Priority pills -->
+            <div class="flex items-center gap-1 bg-surface-100 rounded-xl p-1">
+              <button
+                v-for="(_, key) in quadrantLabels"
+                :key="key"
+                class="px-3 py-1 text-[10px] font-semibold rounded-lg transition-all"
+                :class="selectedPriority === key ? 'bg-brand-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
+                @click="selectedPriority = key as string"
+              >
+                {{ (key as string).toUpperCase() }}
+              </button>
+            </div>
+            <!-- Project selector -->
+            <select v-model="selectedProject" class="text-[11px] border-0 bg-surface-100 rounded-xl px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-brand-200/50 transition-colors max-w-[120px]">
               <option value="">No project</option>
               <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>
             </select>
-            <button
-              class="px-5 py-2 bg-brand-500 text-white text-sm rounded-sm hover:bg-brand-600 transition-colors disabled:opacity-30 font-medium"
-              :disabled="!text.trim()"
-              @click="collapse(); submit()"
-            >
-              {{ editingBlock ? 'Update' : 'Send' }}
-            </button>
           </div>
+          <button
+            class="px-6 py-2.5 bg-gradient-to-r from-brand-500 to-violet-500 text-white text-sm rounded-xl hover:shadow-lg hover:shadow-brand-500/25 transition-all disabled:opacity-30 font-semibold"
+            :disabled="!text.trim()"
+            @click="collapse(); submit()"
+          >
+            Send
+          </button>
         </div>
       </div>
     </Teleport>
@@ -518,9 +485,9 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   font-size: 13px;
   color: #475569;
   transition: all 0.15s;

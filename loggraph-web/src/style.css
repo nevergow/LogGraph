@@ -16,12 +16,20 @@
   --color-brand-700: #4338ca;
   --color-brand-800: #3730a3;
 
+  /* Violet accent for gradients */
+  --color-violet-50: #f5f3ff;
+  --color-violet-100: #ede9fe;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+
   /* Surface — two surfaces only */
   --color-surface-0: #ffffff;
   --color-surface-50: #f8fafc;
+  --color-surface-100: #f1f5f9;
 
   /* Border — single subtle border */
   --color-border-light: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
 
   /* Text */
   --color-text-primary: #0f172a;
@@ -30,7 +38,9 @@
 
   /* Semantic — 3 colors: success, danger, and brand handles the rest */
   --color-success: #10b981;
+  --color-success-light: #d1fae5;
   --color-danger: #ef4444;
+  --color-danger-light: #fee2e2;
 
   /* Typography — 3 sizes */
   --font-size-caption: 0.6875rem;
@@ -40,12 +50,16 @@
   /* Spacing */
   --spacing-section: 1.5rem;
 
-  /* Shadow — single elevated shadow, no default card shadow */
+  /* Shadow — elevated + soft glass */
   --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.12);
 
-  /* Border radius — 2 sizes: controls (6px), cards (10px) */
+  /* Border radius — 3 sizes: controls (6px), cards (10px), xl (16px) */
   --radius-sm: 0.375rem;
   --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
 
   /* Z-index scale */
   --z-sidebar: 10;
@@ -59,10 +73,23 @@ html, body, #app {
   height: 100%;
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: #f8fafc;
+  background: linear-gradient(135deg, #f8fafc 0%, #ede9fe 50%, #f8fafc 100%);
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glass morphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 /* Vue Flow overrides */
@@ -82,11 +109,28 @@ html, body, #app {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #c7d2fe;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a5b4fc;
+}
+
+/* Gradient text utility */
+.text-gradient {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover lift animation */
+.card-lift {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
 }
 
 /* Transitions */

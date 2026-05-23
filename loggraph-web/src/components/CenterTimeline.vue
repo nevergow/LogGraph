@@ -21,11 +21,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   'load-more': []
   select: [id: string]
-  edit: [id: string]
   'toggle-status': [id: string, current: string]
   'filter-change': [key: string, value: string | undefined]
   archive: [id: string]
   delete: [id: string]
+  'request-edit': [id: string]
 }>()
 
 const hideCompleted = ref(false)
@@ -60,11 +60,11 @@ function onTimelineTouchMove(e: TouchEvent, list: Block[]) {
     const dist = Math.abs(touch.clientY - midY)
     if (dist < minDist) {
       minDist = dist
-      nearest = list[i] || null
+      nearest = list[i]
     }
   })
   if (nearest) {
-    tooltipTime.value = formatTime(nearest.created_at)
+    tooltipTime.value = formatTime((nearest as Block).created_at)
     tooltipVisible.value = true
   }
 }
@@ -162,10 +162,10 @@ function formatTime(ts: string): string {
               :selected="selectedId === block.id"
               :screen-size="screenSize"
               @select="id => emit('select', id)"
-              @edit="id => emit('edit', id)"
               @toggle-status="(id, current) => emit('toggle-status', id, current)"
               @archive="id => emit('archive', id)"
               @delete="id => emit('delete', id)"
+              @request-edit="id => emit('request-edit', id)"
             />
           </div>
         </div>

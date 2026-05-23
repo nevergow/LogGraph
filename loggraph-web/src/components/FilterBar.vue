@@ -20,21 +20,21 @@ function applyDateFilter(since: string, until: string) {
 </script>
 
 <template>
-  <div class="px-3 sm:px-4 py-2 border-b border-gray-200 bg-white flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
-    <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none text-gray-500">
+  <div class="px-4 py-2.5 border-b border-border-subtle bg-white/60 backdrop-blur-sm flex items-center gap-3 shrink-0 flex-wrap">
+    <label class="flex items-center gap-2 text-xs cursor-pointer select-none text-text-secondary">
       <input
         type="checkbox"
         :checked="hideCompleted"
-        class="rounded-sm border-gray-300"
+        class="w-4 h-4 rounded-lg border-border-light text-brand-500 focus:ring-brand-200"
         @change="emit('update:hideCompleted', ($event.target as HTMLInputElement).checked)"
       />
       <span class="hidden sm:inline">Hide done</span>
     </label>
-    <span class="text-[11px] text-gray-400 tabular-nums">{{ count }}</span>
+    <span class="text-[11px] text-text-muted tabular-nums font-medium">{{ count }}</span>
 
-    <div class="w-px h-4 bg-gray-200 hidden sm:block" />
+    <div class="w-px h-4 bg-border-light hidden sm:block" />
     <select
-      class="text-xs border border-gray-200 rounded-sm px-2 py-1 bg-white text-gray-500 outline-none focus:border-brand-300 transition-colors"
+      class="text-xs border-0 bg-surface-100 rounded-xl px-3 py-1.5 text-text-secondary outline-none focus:ring-2 focus:ring-brand-200/50 transition-colors"
       :value="statusFilter || ''"
       @change="emit('filter-change', 'status', ($event.target as HTMLSelectElement).value || undefined)"
     >
@@ -44,19 +44,19 @@ function applyDateFilter(since: string, until: string) {
       <option value="blocked">Blocked</option>
     </select>
 
-    <div class="w-px h-4 bg-gray-200" />
+    <div class="w-px h-4 bg-border-light" />
     <input
       type="date"
       :value="sinceDate || ''"
-      class="text-xs border border-gray-200 rounded-sm px-2 py-1 bg-white text-gray-500 w-32 outline-none focus:border-brand-300 transition-colors"
+      class="text-xs border-0 bg-surface-100 rounded-xl px-3 py-1.5 text-text-secondary w-32 outline-none focus:ring-2 focus:ring-brand-200/50 transition-colors"
       title="From date"
       @change="applyDateFilter(($event.target as HTMLInputElement).value, untilDate || '')"
     />
-    <span class="text-xs text-gray-300">-</span>
+    <span class="text-xs text-text-muted">-</span>
     <input
       type="date"
       :value="untilDate || ''"
-      class="text-xs border border-gray-200 rounded-sm px-2 py-1 bg-white text-gray-500 w-32 outline-none focus:border-brand-300 transition-colors"
+      class="text-xs border-0 bg-surface-100 rounded-xl px-3 py-1.5 text-text-secondary w-32 outline-none focus:ring-2 focus:ring-brand-200/50 transition-colors"
       title="To date"
       @change="applyDateFilter(sinceDate || '', ($event.target as HTMLInputElement).value)"
     />

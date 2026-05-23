@@ -10,6 +10,7 @@ import WebhookSettings from './components/WebhookSettings.vue'
 import AIPanel from './components/AIPanel.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import CalendarHeatmap from './components/CalendarHeatmap.vue'
+import CardEditor from './components/CardEditor.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import { useBlocks } from './composables/useBlocks'
 import { useNodes } from './composables/useNodes'
@@ -23,9 +24,28 @@ const currentView = ref<'project' | 'timeline'>('project')
 const showWebhooks = ref(false)
 const showAI = ref(false)
 const showGraph = ref(false)
+const editingBlockId = ref<string | null>(null)
+
+const editingBlock = computed<Block | null>(() =>
+  editingBlockId.value ? blocks.value.find(b => b.id === editingBlockId.value) ?? null : null
+)
+
+function handleRequestEdit(id: string) {
+  editingBlockId.value = id
+}
+
+function handleEditorSave(id: string, content: string) {
+  updateBlock(id, { content })
+  fetchProjects()
+  fetchPeople()
+  editingBlockId.value = null
+}
+
+function handleEditorClose() {
+  editingBlockId.value = null
+}
 const showHeaderMenu = ref(false)
 const showHeatmap = ref(false)
-const editingBlock = ref<Block | null>(null)
 
 function navigateToProject(project: string) {
   setFilter('project', project)
@@ -100,25 +120,9 @@ async function handleCreate(content: string, metadata?: Record<string, any>) {
   fetchPeople()
 }
 
-function handleEdit(id: string) {
-  const b = blocks.value.find(b => b.id === id)
-  if (b) editingBlock.value = b
-}
-
-async function handleUpdate(id: string, content: string, metadata?: Record<string, any>) {
-  await updateBlock(id, { content, ...(metadata && Object.keys(metadata).length > 0 ? { metadata } : {}) })
-  editingBlock.value = null
-  fetchProjects()
-  fetchPeople()
-}
-
 async function handleToggleStatus(id: string, current: string) {
   const next = current === 'active' ? 'completed' : current === 'completed' ? 'blocked' : 'active'
   await updateBlock(id, { status: next })
-}
-
-function handleCancelEdit() {
-  editingBlock.value = null
 }
 
 function handleArchive(id: string) {
@@ -148,7 +152,7 @@ function handleCommand(action: string) {
     case 'ai-report': showAI.value = true; break
     case 'webhooks': showWebhooks.value = true; break
     case 'clear-filters': clearAllFilters(); break
-    case 'new-entry': editingBlock.value = null; break
+    case 'new-entry': break
   }
 }
 </script>
@@ -156,25 +160,26 @@ function handleCommand(action: string) {
 <template>
   <div class="h-full flex flex-col">
     <!-- Header (consolidated: logo + segmented control + actions) -->
-    <header class="h-11 border-b border-gray-200/60 flex items-center px-3 sm:px-5 shrink-0 bg-white justify-between">
-      <div class="flex items-center gap-2 sm:gap-3">
-        <div class="w-7 h-7 bg-brand-500 rounded-sm flex items-center justify-center">
+    <header class="h-14 px-5 flex items-center justify-between shrink-0 glass border-b border-white/20">
+      <div class="flex items-center gap-3">
+        <!-- Logo with gradient background -->
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-md">
           <span class="text-white font-bold text-xs">LG</span>
         </div>
-        <span class="font-semibold text-xs sm:text-sm tracking-tight text-gray-800">LogGraph</span>
+        <span class="font-semibold text-sm tracking-tight text-text-primary">LogGraph</span>
 
         <!-- Segmented control (in header) -->
-        <div class="ml-2 inline-flex bg-gray-100 rounded-sm p-0.5">
+        <div class="ml-2 inline-flex bg-surface-100 rounded-xl p-1">
           <button
-            class="px-3 py-1 text-xs font-medium rounded-md transition-all"
-            :class="currentView === 'project' ? 'bg-white shadow-sm ring-1 ring-gray-200/60 text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+            class="px-4 py-1.5 text-xs font-medium rounded-lg transition-all duration-200"
+            :class="currentView === 'project' ? 'bg-white shadow-sm text-text-primary' : 'text-text-secondary hover:text-text-primary'"
             @click="currentView = 'project'"
           >
             Projects
           </button>
           <button
-            class="px-3 py-1 text-xs font-medium rounded-md transition-all"
-            :class="currentView === 'timeline' ? 'bg-white shadow-sm ring-1 ring-gray-200/60 text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+            class="px-4 py-1.5 text-xs font-medium rounded-lg transition-all duration-200"
+            :class="currentView === 'timeline' ? 'bg-white shadow-sm text-text-primary' : 'text-text-secondary hover:text-text-primary'"
             @click="currentView = 'timeline'"
           >
             Timeline
@@ -184,20 +189,20 @@ function handleCommand(action: string) {
         <!-- Active filter pill -->
         <button
           v-if="hasActiveFilter"
-          class="flex items-center gap-1 px-2 py-0.5 text-[11px] text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors font-medium"
+          class="flex items-center gap-1.5 px-3 py-1 text-[11px] text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors font-medium border border-brand-200/50"
           @click="clearAllFilters()"
         >
+          <span>Filtered</span>
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
-          Clear
         </button>
       </div>
-      <div class="flex items-center gap-0.5 sm:gap-1">
+      <div class="flex items-center gap-1">
         <!-- Mobile panel toggles -->
         <button
           v-if="screenSize !== 'desktop'"
-          class="text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-sm"
+          class="text-xs text-text-secondary hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
           @click="showLeftOverlay = true"
           title="Filters & Projects"
         >
@@ -207,7 +212,7 @@ function handleCommand(action: string) {
         </button>
         <button
           v-if="screenSize !== 'desktop'"
-          class="text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-sm"
+          class="text-xs text-text-secondary hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
           @click="showGraph = true"
           title="Graph"
         >
@@ -219,7 +224,7 @@ function handleCommand(action: string) {
         <!-- Consolidated actions menu -->
         <div class="relative" @click.stop>
           <button
-            class="text-xs text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-2 py-1.5 rounded-sm"
+            class="text-xs text-text-secondary hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
             @click="showHeaderMenu = !showHeaderMenu"
             title="More"
           >
@@ -229,42 +234,42 @@ function handleCommand(action: string) {
           </button>
           <div
             v-if="showHeaderMenu"
-            class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-elevated z-50 py-1 min-w-[140px]"
+            class="absolute right-0 top-full mt-2 glass-strong border border-white/50 rounded-2xl shadow-glass z-50 py-2 min-w-[160px]"
             @click.stop
           >
             <button
-              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
               @click="showGraph = true; showHeaderMenu = false"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
               Graph
             </button>
             <button
-              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
               @click="showAI = !showAI; showHeaderMenu = false"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
               AI Report
             </button>
             <button
-              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
               @click="showWebhooks = !showWebhooks; showHeaderMenu = false"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               </svg>
               Webhooks
             </button>
-            <div class="border-t border-gray-100 my-1" />
+            <div class="border-t border-border-subtle my-2" />
             <button
-              class="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-2"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
               @click="showHeatmap = !showHeatmap; showHeaderMenu = false"
             >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               Activity
@@ -277,12 +282,12 @@ function handleCommand(action: string) {
     <!-- Heatmap popover -->
     <div
       v-if="showHeatmap"
-      class="fixed top-11 right-4 z-40 bg-white rounded-md shadow-elevated border border-gray-200 p-3 w-80"
+      class="fixed top-14 right-4 z-40 glass-strong rounded-2xl shadow-glass border border-white/50 p-4 w-80"
       @click.stop
     >
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-medium text-gray-500">Activity</span>
-        <button class="text-gray-400 hover:text-gray-600" @click="showHeatmap = false">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-semibold text-text-primary uppercase tracking-wide">Activity</span>
+        <button class="text-text-muted hover:text-text-primary transition-colors p-1 rounded-lg hover:bg-surface-100" @click="showHeatmap = false">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -304,9 +309,11 @@ function handleCommand(action: string) {
           @select-project="p => setFilter('project', p)"
           @select-person="p => setFilter('person', p)"
           @clear-filters="setFilter('project', undefined); setFilter('person', undefined)"
+          @node-updated="fetchProjects(); fetchPeople()"
+          @node-deleted="fetchProjects(); fetchPeople()"
         />
         <div
-          class="w-1 cursor-col-resize bg-transparent hover:bg-brand-300 transition-colors shrink-0"
+          class="w-1 cursor-col-resize bg-transparent hover:bg-brand-300/50 transition-colors shrink-0 rounded-full"
           @mousedown="startResize()"
         />
 
@@ -319,11 +326,12 @@ function handleCommand(action: string) {
           :selected-id="selectedBlockId"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-          @edit="handleEdit"
+
           @toggle-status="handleToggleStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
+          @request-edit="handleRequestEdit"
         />
         <CenterTimeline
           v-else
@@ -339,11 +347,12 @@ function handleCommand(action: string) {
           :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-          @edit="handleEdit"
+
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
+          @request-edit="handleRequestEdit"
         />
       </template>
 
@@ -357,6 +366,8 @@ function handleCommand(action: string) {
           @select-project="p => setFilter('project', p)"
           @select-person="p => setFilter('person', p)"
           @clear-filters="setFilter('project', undefined); setFilter('person', undefined)"
+          @node-updated="fetchProjects(); fetchPeople()"
+          @node-deleted="fetchProjects(); fetchPeople()"
         />
 
         <ProjectView
@@ -368,11 +379,12 @@ function handleCommand(action: string) {
           :selected-id="selectedBlockId"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-          @edit="handleEdit"
+
           @toggle-status="handleToggleStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
+          @request-edit="handleRequestEdit"
         />
         <CenterTimeline
           v-else
@@ -388,11 +400,12 @@ function handleCommand(action: string) {
           :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-          @edit="handleEdit"
+
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
+          @request-edit="handleRequestEdit"
         />
       </template>
 
@@ -407,11 +420,12 @@ function handleCommand(action: string) {
           :selected-id="selectedBlockId"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-          @edit="handleEdit"
+
           @toggle-status="handleToggleStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
+          @request-edit="handleRequestEdit"
         />
         <CenterTimeline
           v-else
@@ -427,20 +441,18 @@ function handleCommand(action: string) {
           :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-          @edit="handleEdit"
+
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
+          @request-edit="handleRequestEdit"
         />
       </template>
     </div>
 
     <SmartInput
-      :editing-block="editingBlock"
       @send="handleCreate"
-      @update="handleUpdate"
-      @cancel-edit="handleCancelEdit"
     />
 
     <!-- Mobile/Tablet overlays (Teleported to body) -->
@@ -450,10 +462,10 @@ function handleCommand(action: string) {
         v-if="showLeftOverlay"
         class="fixed inset-0 z-50"
       >
-        <div class="absolute inset-0 bg-black/30" @click="showLeftOverlay = false" />
-        <aside class="relative w-72 max-w-[85vw] bg-white h-full shadow-xl overflow-y-auto">
-          <div class="flex justify-end p-2">
-            <button class="text-gray-400 hover:text-gray-600 text-lg leading-none p-1" @click="showLeftOverlay = false">&times;</button>
+        <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showLeftOverlay = false" />
+        <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-glass overflow-y-auto rounded-r-2xl">
+          <div class="flex justify-end p-3">
+            <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showLeftOverlay = false">&times;</button>
           </div>
           <LeftSidebar
             :projects="projects"
@@ -462,6 +474,8 @@ function handleCommand(action: string) {
             @select-project="handleSelectProject"
             @select-person="handleSelectPerson"
             @clear-filters="setFilter('project', undefined); setFilter('person', undefined); showLeftOverlay = false"
+            @node-updated="fetchProjects(); fetchPeople()"
+            @node-deleted="fetchProjects(); fetchPeople()"
           />
         </aside>
       </div>
@@ -471,21 +485,26 @@ function handleCommand(action: string) {
         v-if="showGraph"
         class="fixed inset-0 z-50 flex justify-end"
       >
-        <div class="absolute inset-0 bg-black/30" @click="showGraph = false" />
-        <aside class="relative w-80 max-w-[85vw] bg-white h-full shadow-elevated overflow-y-auto">
-          <div class="flex justify-end p-2">
-            <button class="text-gray-400 hover:text-gray-600 text-lg leading-none p-1" @click="showGraph = false">&times;</button>
+        <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showGraph = false" />
+        <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-glass overflow-y-auto rounded-l-2xl">
+          <div class="flex justify-end p-3">
+            <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showGraph = false">&times;</button>
           </div>
           <RightGraphPanel
             :block-id="selectedBlockId"
             :project-node-id="selectedProjectNodeId"
-            :project-name="filters.project"
+            :project-name="filters.project ?? null"
           />
         </aside>
       </div>
     </Teleport>
 
     <ToastContainer />
+    <CardEditor
+      :block="editingBlock"
+      @save="handleEditorSave"
+      @close="handleEditorClose"
+    />
     <CommandPalette @command="handleCommand" />
     <WebhookSettings v-if="showWebhooks" @close="showWebhooks = false" />
     <AIPanel

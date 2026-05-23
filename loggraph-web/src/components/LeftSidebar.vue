@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import type { Node } from '../types'
+import { nodesApi } from '../api/nodes'
+
 const props = defineProps<{
   projects: Node[]
   people: Node[]
@@ -11,6 +13,8 @@ const emit = defineEmits<{
   'select-project': [name: string]
   'select-person': [name: string]
   'clear-filters': []
+  'node-updated': []
+  'node-deleted': []
 }>()
 
 const collapsed = ref(false)
@@ -29,22 +33,70 @@ const filteredPeople = computed(() => {
 })
 
 const showSearch = computed(() => true)
+
+// ── Inline edit state ──
+const editingNodeId = ref<string | null>(null)
+const editingNodeName = ref('')
+const editInputRef = ref<HTMLInputElement | null>(null)
+const deletingNodeId = ref<string | null>(null)
+
+function startEdit(node: Node) {
+  editingNodeId.value = node.id
+  editingNodeName.value = node.name
+  nextTick(() => editInputRef.value?.focus())
+}
+
+async function saveEdit(id: string) {
+  const name = editingNodeName.value.trim()
+  if (!name) return
+  try {
+    await nodesApi.update(id, name)
+    editingNodeId.value = null
+    emit('node-updated')
+  } catch { /* ignore */ }
+}
+
+function cancelEdit() {
+  editingNodeId.value = null
+}
+
+function onEditKeydown(e: KeyboardEvent, id: string) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    saveEdit(id)
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    cancelEdit()
+  }
+}
+
+async function confirmDelete(node: Node) {
+  deletingNodeId.value = node.id
+}
+
+async function doDelete(id: string) {
+  try {
+    await nodesApi.delete(id)
+    deletingNodeId.value = null
+    emit('node-deleted')
+  } catch { /* ignore */ }
+}
 </script>
 
 <template>
-  <aside class="border-r border-gray-200 bg-white flex flex-col shrink-0 overflow-hidden" :class="collapsed ? 'items-center' : ''">
+  <aside class="border-r border-border-subtle flex flex-col shrink-0 overflow-hidden bg-white/50" :class="collapsed ? 'items-center' : ''">
     <!-- Collapse toggle -->
-    <div class="p-2 border-b border-gray-100 flex" :class="collapsed ? 'justify-center' : 'justify-between items-center'">
+    <div class="p-3 border-b border-border-subtle flex" :class="collapsed ? 'justify-center' : 'justify-between items-center'">
       <button
         v-if="!collapsed && activeProject"
-        class="text-[10px] text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2 py-0.5 rounded-full transition-colors"
+        class="text-[10px] text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-3 py-1 rounded-full transition-colors font-medium border border-brand-200/50"
         @click="emit('clear-filters')"
       >
         Clear
       </button>
       <span v-if="!collapsed && !activeProject" />
       <button
-        class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-sm transition-colors shrink-0"
+        class="text-text-muted hover:text-brand-600 hover:bg-brand-50 p-2 rounded-xl transition-colors shrink-0"
         :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         @click="collapsed = !collapsed"
       >
@@ -59,9 +111,9 @@ const showSearch = computed(() => true)
 
     <template v-if="collapsed">
       <!-- Collapsed: icon-only strip -->
-      <div class="flex-1 flex flex-col items-center gap-4 pt-3 overflow-y-auto">
+      <div class="flex-1 flex flex-col items-center gap-3 pt-4 overflow-y-auto">
         <button
-          class="p-2 rounded-sm hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors"
+          class="p-3 rounded-xl hover:bg-brand-50 text-text-muted hover:text-brand-600 transition-colors"
           title="Projects"
           @click="collapsed = false"
         >
@@ -70,7 +122,7 @@ const showSearch = computed(() => true)
           </svg>
         </button>
         <button
-          class="p-2 rounded-sm hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors"
+          class="p-3 rounded-xl hover:bg-brand-50 text-text-muted hover:text-brand-600 transition-colors"
           title="People"
           @click="collapsed = false"
         >
@@ -83,55 +135,115 @@ const showSearch = computed(() => true)
     </template>
 
     <template v-else>
-      <div class="px-3 py-2 border-b border-gray-100">
+      <div class="px-4 py-3 border-b border-border-subtle">
         <input
           v-if="showSearch"
           v-model="searchQuery"
           type="text"
           placeholder="Search..."
-          class="w-full text-xs border border-gray-200 rounded-md px-2 py-1.5 outline-none focus:border-brand-300 focus:ring-1 focus:ring-brand-50 transition-all"
+          class="w-full text-xs border-0 bg-surface-100 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-200/50 transition-all placeholder:text-text-muted"
         />
       </div>
 
       <div class="flex-1 overflow-y-auto">
         <!-- Projects / Standards -->
-        <div class="px-3 pt-3 pb-1.5 text-xs font-medium text-gray-400">
+        <div class="px-4 pt-4 pb-2 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
           Projects
         </div>
-        <ul class="px-2">
+        <ul class="px-3">
           <li
             v-for="p in filteredProjects"
             :key="p.id"
-            class="group px-2.5 py-1.5 rounded-md text-sm cursor-pointer transition-all truncate flex items-center gap-2"
+            class="group px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift"
             :class="activeProject === p.name
               ? 'bg-brand-50 text-brand-700 font-medium'
-              : 'text-gray-600 hover:bg-gray-50'"
+              : 'text-text-secondary hover:bg-surface-100'"
             @click="emit('select-project', p.name)"
           >
-            <span class="w-1 h-1 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-brand-300' : 'bg-brand-400'" />
-            <span class="truncate">{{ p.name }}</span>
-            <span v-if="p.type === 'standard'" class="text-[10px] text-brand-400 shrink-0 ml-auto opacity-60">std</span>
+            <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-brand-300' : 'bg-brand-500'" />
+            <input
+              v-if="editingNodeId === p.id"
+              ref="editInputRef"
+              v-model="editingNodeName"
+              class="flex-1 min-w-0 text-xs border border-brand-300 rounded-lg px-2 py-1 outline-none bg-white"
+              @click.stop
+              @keydown="onEditKeydown($event, p.id)"
+              @blur="saveEdit(p.id)"
+            />
+            <span v-else class="truncate">{{ p.name }}</span>
+            <span v-if="p.type === 'standard'" class="text-[9px] text-brand-400 shrink-0 ml-auto opacity-60 font-medium">STD</span>
+            <!-- Hover actions -->
+            <div v-if="editingNodeId !== p.id" class="hidden group-hover:flex items-center gap-1 shrink-0 ml-auto" @click.stop>
+              <button
+                class="p-1.5 rounded-lg text-text-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                title="Rename"
+                @click="startEdit(p)"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button
+                class="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger-light transition-colors"
+                title="Delete"
+                @click="confirmDelete(p)"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           </li>
-          <li v-if="filteredProjects.length === 0" class="px-2 py-2 text-xs text-gray-400 italic">
+          <li v-if="filteredProjects.length === 0" class="px-3 py-3 text-xs text-text-muted italic">
             {{ searchQuery ? 'No matches' : 'No projects yet' }}
           </li>
         </ul>
 
         <!-- People -->
-        <div class="px-3 pt-4 pb-1.5 text-xs font-medium text-gray-400">
+        <div class="px-4 pt-5 pb-2 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
           People
         </div>
-        <ul class="px-2 pb-4">
+        <ul class="px-3 pb-4">
           <li
             v-for="p in filteredPeople"
             :key="p.id"
-            class="group px-2.5 py-1.5 rounded-md text-sm cursor-pointer transition-all truncate flex items-center gap-2 text-gray-600 hover:bg-gray-50"
+            class="group px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary hover:bg-surface-100"
             @click="emit('select-person', p.name)"
           >
-            <span class="w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
-            <span class="truncate">{{ p.name }}</span>
+            <span class="w-2 h-2 rounded-full bg-success shrink-0" />
+            <input
+              v-if="editingNodeId === p.id"
+              ref="editInputRef"
+              v-model="editingNodeName"
+              class="flex-1 min-w-0 text-xs border border-brand-300 rounded-lg px-2 py-1 outline-none bg-white"
+              @click.stop
+              @keydown="onEditKeydown($event, p.id)"
+              @blur="saveEdit(p.id)"
+            />
+            <span v-else class="truncate">{{ p.name }}</span>
+            <!-- Hover actions -->
+            <div v-if="editingNodeId !== p.id" class="hidden group-hover:flex items-center gap-1 shrink-0 ml-auto" @click.stop>
+              <button
+                class="p-1.5 rounded-lg text-text-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                title="Rename"
+                @click="startEdit(p)"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button
+                class="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger-light transition-colors"
+                title="Delete"
+                @click="confirmDelete(p)"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           </li>
-          <li v-if="filteredPeople.length === 0" class="px-2 py-2 text-xs text-gray-400 italic">
+          <li v-if="filteredPeople.length === 0" class="px-3 py-3 text-xs text-text-muted italic">
             {{ searchQuery ? 'No matches' : 'No people yet' }}
           </li>
         </ul>
@@ -139,4 +251,32 @@ const showSearch = computed(() => true)
       </div>
     </template>
   </aside>
+
+  <!-- Delete confirmation modal -->
+  <Teleport to="body">
+    <div
+      v-if="deletingNodeId"
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      @click="deletingNodeId = null"
+    >
+      <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+      <div class="relative glass-strong rounded-2xl shadow-glass border border-white/50 p-6 max-w-sm w-full mx-4" @click.stop>
+        <p class="text-sm text-text-primary mb-4">Delete this node? Blocks will keep their text but lose the association.</p>
+        <div class="flex justify-end gap-2">
+          <button
+            class="px-4 py-2 text-sm text-text-secondary hover:bg-surface-100 rounded-xl transition-colors"
+            @click="deletingNodeId = null"
+          >
+            Cancel
+          </button>
+          <button
+            class="px-4 py-2 text-sm bg-danger text-white rounded-xl hover:bg-danger/90 transition-colors shadow-md"
+            @click="doDelete(deletingNodeId!)"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
