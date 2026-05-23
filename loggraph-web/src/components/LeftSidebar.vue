@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import type { Node } from '../types'
 import { nodesApi } from '../api/nodes'
 
@@ -39,6 +39,14 @@ const editingNodeId = ref<string | null>(null)
 const editingNodeName = ref('')
 const editInputRef = ref<HTMLInputElement | null>(null)
 const deletingNodeId = ref<string | null>(null)
+const activeNodeId = ref<string | null>(null)
+
+// Close active state when clicking outside
+function onDocumentClick() {
+  activeNodeId.value = null
+}
+onMounted(() => document.addEventListener('click', onDocumentClick))
+onUnmounted(() => document.removeEventListener('click', onDocumentClick))
 
 function startEdit(node: Node) {
   editingNodeId.value = node.id
@@ -154,10 +162,13 @@ async function doDelete(id: string) {
           <li
             v-for="p in filteredProjects"
             :key="p.id"
-            class="group px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift"
-            :class="activeProject === p.name
-              ? 'bg-brand-50 text-brand-700 font-medium'
-              : 'text-text-secondary hover:bg-surface-100'"
+            class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift"
+            :class="[
+              activeProject === p.name
+                ? 'bg-brand-50 text-brand-700 font-medium'
+                : 'text-text-secondary hover:bg-surface-100',
+              activeNodeId === p.id && 'bg-surface-100'
+            ]"
             @click="emit('select-project', p.name)"
           >
             <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-brand-300' : 'bg-brand-500'" />
@@ -172,8 +183,13 @@ async function doDelete(id: string) {
             />
             <span v-else class="truncate">{{ p.name }}</span>
             <span v-if="p.type === 'standard'" class="text-[9px] text-brand-400 shrink-0 ml-auto opacity-60 font-medium">STD</span>
-            <!-- Hover actions -->
-            <div v-if="editingNodeId !== p.id" class="hidden group-hover:flex items-center gap-1 shrink-0 ml-auto" @click.stop>
+            <!-- Mobile tap actions / Desktop hover actions -->
+            <div
+              v-if="editingNodeId !== p.id"
+              class="flex items-center gap-1 shrink-0 ml-auto"
+              :class="activeNodeId === p.id ? 'flex' : 'hidden group-hover:flex'"
+              @click.stop
+            >
               <button
                 class="p-1.5 rounded-lg text-text-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
                 title="Rename"
@@ -207,7 +223,8 @@ async function doDelete(id: string) {
           <li
             v-for="p in filteredPeople"
             :key="p.id"
-            class="group px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary hover:bg-surface-100"
+            class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary hover:bg-surface-100"
+            :class="{ 'bg-surface-100': activeNodeId === p.id }"
             @click="emit('select-person', p.name)"
           >
             <span class="w-2 h-2 rounded-full bg-success shrink-0" />
@@ -221,8 +238,13 @@ async function doDelete(id: string) {
               @blur="saveEdit(p.id)"
             />
             <span v-else class="truncate">{{ p.name }}</span>
-            <!-- Hover actions -->
-            <div v-if="editingNodeId !== p.id" class="hidden group-hover:flex items-center gap-1 shrink-0 ml-auto" @click.stop>
+            <!-- Mobile tap actions / Desktop hover actions -->
+            <div
+              v-if="editingNodeId !== p.id"
+              class="flex items-center gap-1 shrink-0 ml-auto"
+              :class="activeNodeId === p.id ? 'flex' : 'hidden group-hover:flex'"
+              @click.stop
+            >
               <button
                 class="p-1.5 rounded-lg text-text-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
                 title="Rename"
