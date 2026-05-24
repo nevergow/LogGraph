@@ -18,8 +18,11 @@ const emit = defineEmits<{
   'node-deleted': []
 }>()
 
-const collapsed = ref(false)
+const pinned = ref(false)
+const hovering = ref(false)
 const searchQuery = ref('')
+
+const isExpanded = computed(() => pinned.value || hovering.value)
 
 const filteredProjects = computed(() => {
   if (!searchQuery.value) return props.projects
@@ -125,38 +128,43 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
 </script>
 
 <template>
-  <aside class="border-r border-white/10 flex flex-col shrink-0 overflow-hidden glass" :class="collapsed ? 'items-center' : ''">
-    <!-- Collapse toggle -->
-    <div class="p-3 border-b border-border-subtle flex" :class="collapsed ? 'justify-center' : 'justify-between items-center'">
+  <aside
+    class="border-r border-white/10 flex flex-col shrink-0 overflow-hidden glass"
+    :class="!isExpanded ? 'items-center' : ''"
+    @mouseenter="hovering = true"
+    @mouseleave="hovering = false"
+  >
+    <!-- Pin toggle -->
+    <div class="p-3 border-b border-border-subtle flex" :class="!isExpanded ? 'justify-center' : 'justify-between items-center'">
       <button
-        v-if="!collapsed && activeProject"
+        v-if="isExpanded && activeProject"
         class="text-[10px] text-accent-600 hover:text-accent-800 bg-accent-50 hover:bg-accent-100 px-3 py-1 rounded-full transition-colors font-medium border border-accent-200/50"
         @click="emit('clear-filters')"
       >
         Clear
       </button>
-      <span v-if="!collapsed && !activeProject" />
+      <span v-if="isExpanded && !activeProject" />
       <button
         class="text-text-muted hover:text-accent-600 hover:bg-accent-50 p-2 rounded-xl transition-colors shrink-0"
-        :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        @click="collapsed = !collapsed"
+        :title="pinned ? 'Unpin sidebar' : 'Pin sidebar'"
+        @click="pinned = !pinned"
       >
-        <svg v-if="collapsed" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+        <!-- Pin icon: filled when pinned, outline when not -->
+        <svg v-if="pinned" class="w-4 h-4 text-accent-500" fill="currentColor" stroke="none" viewBox="0 0 24 24">
+          <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
         </svg>
         <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
         </svg>
       </button>
     </div>
 
-    <template v-if="collapsed">
-      <!-- Collapsed: icon-only strip -->
+    <template v-if="!isExpanded">
+      <!-- Icon-only strip -->
       <div class="flex-1 flex flex-col items-center gap-3 pt-4 overflow-y-auto">
         <button
           class="p-3 rounded-xl hover:bg-accent-50 text-text-muted hover:text-accent-600 transition-colors"
           title="Projects"
-          @click="collapsed = false"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -165,7 +173,6 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
         <button
           class="p-3 rounded-xl hover:bg-accent-50 text-text-muted hover:text-accent-600 transition-colors"
           title="People"
-          @click="collapsed = false"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />

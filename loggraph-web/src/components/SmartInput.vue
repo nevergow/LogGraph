@@ -23,16 +23,7 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const { projects, fetchProjects } = useNodes()
 
-// ── Priority quadrant ──
-const selectedPriority = ref<string>('q3')
 const selectedProject = ref<string>('')
-
-const quadrantLabels: Record<string, string> = {
-  q1: '紧急重要',
-  q2: '紧急不重要',
-  q3: '不紧急重要',
-  q4: '不紧急不重要',
-}
 
 // ── Progressive input state ──
 const isExpanded = ref(false)
@@ -278,10 +269,6 @@ function submit() {
   }
 
   const metadata: Record<string, any> = {}
-  metadata.quadrant = selectedPriority.value
-  if (selectedPriority.value === 'q1' || selectedPriority.value === 'q2') {
-    metadata.priority = 'high'
-  }
 
   // Extract parent block ID from prefill content (^uuid at start)
   let parentBlockId: string | undefined
@@ -292,7 +279,6 @@ function submit() {
 
   emit('send', trimmed, metadata, parentBlockId)
   text.value = ''
-  selectedPriority.value = 'q3'
   selectedProject.value = ''
   showSuggest.value = false
   isExpanded.value = false
@@ -393,19 +379,6 @@ onUnmounted(() => {
         @paste="onPaste"
       />
 
-      <!-- Priority pills -->
-      <div class="shrink-0 flex items-center gap-1 bg-surface-100 rounded-lg p-1">
-        <button
-          v-for="(_, key) in quadrantLabels"
-          :key="key"
-          class="px-2.5 py-1 text-[10px] font-medium rounded-md transition-all"
-          :class="selectedPriority === key ? 'bg-accent-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
-          @click="selectedPriority = key as string"
-        >
-          {{ (key as string).toUpperCase() }}
-        </button>
-      </div>
-
       <!-- Project dropdown -->
       <select v-model="selectedProject" class="shrink-0 text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[100px]">
         <option value="">No project</option>
@@ -491,17 +464,6 @@ onUnmounted(() => {
         <!-- Footer -->
         <div class="px-4 py-3 border-t border-border-subtle flex items-center justify-between shrink-0 gap-3">
           <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1 bg-surface-100 rounded-lg p-1">
-              <button
-                v-for="(_, key) in quadrantLabels"
-                :key="key"
-                class="px-3 py-1 text-[10px] font-semibold rounded-md transition-all"
-                :class="selectedPriority === key ? 'bg-accent-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
-                @click="selectedPriority = key as string"
-              >
-                {{ (key as string).toUpperCase() }}
-              </button>
-            </div>
             <select v-model="selectedProject" class="text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[120px]">
               <option value="">No project</option>
               <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>

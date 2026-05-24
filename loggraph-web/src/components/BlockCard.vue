@@ -41,9 +41,15 @@ onUnmounted(() => {
 })
 
 function borderColor(s: string): string {
-  if (s === 'completed') return 'border-l-success'
-  if (s === 'blocked') return 'border-l-danger'
-  return 'border-l-accent-500'
+  if (s === 'completed') return 'border-l-emerald-500'
+  if (s === 'blocked') return 'border-l-red-500'
+  return 'border-l-blue-500'
+}
+
+function statusBg(s: string): string {
+  if (s === 'blocked') return 'bg-red-50/30'
+  if (s === 'completed') return ''
+  return ''
 }
 
 function renderContent(text: string): string {
@@ -154,8 +160,9 @@ function onDragStart(e: DragEvent) {
       class="card-surface rounded-xl cursor-pointer transition-all duration-200 hover:shadow-card-hover relative z-10 border-l-[3px]"
       :class="[
         hasRelations ? 'block-related' : borderColor(block.status),
+        statusBg(block.status),
         {
-          'bg-accent-50/70 border-l-accent-500': selected,
+          'bg-blue-50/70 border-l-blue-500': selected,
           'block-done': block.status === 'completed',
           'block-done-transition': true,
           'p-4': viewMode !== 'compact',
@@ -163,7 +170,8 @@ function onDragStart(e: DragEvent) {
         }
       ]"
       :style="swipeStyle"
-      @click="viewMode === 'compact' ? viewMode = 'expanded' : (viewMode === 'expanded' ? viewMode = 'compact' : null)"
+      @click="emit('select', block.id)"
+      @dblclick="viewMode === 'compact' ? viewMode = 'expanded' : (viewMode === 'expanded' ? viewMode = 'compact' : null)"
     >
       <!-- Desktop: three-dot dropdown -->
       <div v-if="viewMode !== 'compact'" class="flex justify-end mb-3">
