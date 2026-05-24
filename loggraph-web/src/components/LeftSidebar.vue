@@ -41,6 +41,7 @@ const editingNodeName = ref('')
 const editInputRef = ref<HTMLInputElement | null>(null)
 const deletingNodeId = ref<string | null>(null)
 const activeNodeId = ref<string | null>(null)
+const savingNodeId = ref<string | null>(null)
 
 // Close active state when clicking outside
 function onDocumentClick(e: MouseEvent) {
@@ -61,13 +62,20 @@ function startEdit(node: Node) {
 }
 
 async function saveEdit(id: string) {
+  if (savingNodeId.value === id) return
   const name = editingNodeName.value.trim()
   if (!name) return
+  savingNodeId.value = id
   try {
-    await nodesApi.update(id, name)
+    await nodesApi.update(id, name, true)
     editingNodeId.value = null
     emit('node-updated')
-  } catch { /* ignore */ }
+  } catch (e: any) {
+    console.error('Failed to update node:', e)
+    alert('保存失败: ' + (e.message || '未知错误'))
+  } finally {
+    savingNodeId.value = null
+  }
 }
 
 function cancelEdit() {
@@ -94,7 +102,10 @@ async function doDelete(id: string) {
     deletingNodeId.value = null
     activeNodeId.value = null
     emit('node-deleted')
-  } catch { /* ignore */ }
+  } catch (e: any) {
+    console.error('Failed to delete node:', e)
+    alert('删除失败: ' + (e.message || '未知错误'))
+  }
 }
 
 const isDesktop = computed(() => props.screenSize === 'desktop')

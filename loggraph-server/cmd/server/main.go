@@ -43,7 +43,7 @@ func main() {
 
 	// Handlers
 	blockHandler := handler.NewBlockHandler(blockRepo, relationRepo)
-	nodeHandler := handler.NewNodeHandler(nodeRepo)
+	nodeHandler := handler.NewNodeHandler(nodeRepo, blockRepo)
 	webhookHandler := handler.NewWebhookHandler(blockRepo, webhookTokenRepo)
 	larkHandler := handler.NewLarkHandler(blockRepo, webhookTokenRepo)
 	attachmentHandler := handler.NewAttachmentHandler(cfg)

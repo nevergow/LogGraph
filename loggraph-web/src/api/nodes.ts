@@ -12,4 +12,16 @@ export const nodesApi = {
     if (type) qs.set('type', type)
     return api.get<Node[]>(`/nodes/suggest?${qs}`)
   },
+
+  create(name: string, type: string) {
+    return api.post<Node>('/nodes', { name, type })
+  },
+
+  update(id: string, name: string, cascade = false) {
+    return api.patch<Node>(`/nodes/${encodeURIComponent(id)}`, { name, cascade })
+  },
+
+  delete(id: string) {
+    return api.delete(`/nodes/${encodeURIComponent(id)}`)
+  },
 }

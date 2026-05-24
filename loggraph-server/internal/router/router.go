@@ -34,7 +34,10 @@ func New(
 
 		r.Route("/nodes", func(r chi.Router) {
 			r.Get("/", nh.List)
+			r.Post("/", nh.Create)
 			r.Get("/suggest", nh.Suggest)
+			r.Patch("/{id}", nh.Update)
+			r.Delete("/{id}", nh.Delete)
 			r.Get("/{id}/graph", bh.NodeGraph)
 		})
 

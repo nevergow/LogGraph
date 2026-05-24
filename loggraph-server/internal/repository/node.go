@@ -76,3 +76,49 @@ func (r *NodeRepo) Suggest(ctx context.Context, query string, nodeType *string, 
 	}
 	return nodes, nil
 }
+
+func (r *NodeRepo) GetByID(ctx context.Context, id string) (*model.Node, error) {
+	var n model.Node
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, name, type, metadata, created_at FROM nodes WHERE id=$1`, id,
+	).Scan(&n.ID, &n.Name, &n.Type, &n.Metadata, &n.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get node by id: %w", err)
+	}
+	return &n, nil
+}
+
+func (r *NodeRepo) Create(ctx context.Context, name string, nodeType model.NodeType) (model.Node, error) {
+	var n model.Node
+	err := r.pool.QueryRow(ctx,
+		`INSERT INTO nodes (name, type) VALUES ($1, $2)
+		 ON CONFLICT (name, type) DO UPDATE SET name = EXCLUDED.name
+		 RETURNING id, name, type, metadata, created_at`,
+		name, nodeType,
+	).Scan(&n.ID, &n.Name, &n.Type, &n.Metadata, &n.CreatedAt)
+	if err != nil {
+		return model.Node{}, fmt.Errorf("create node: %w", err)
+	}
+	return n, nil
+}
+
+func (r *NodeRepo) Update(ctx context.Context, id, name string) (model.Node, error) {
+	var n model.Node
+	err := r.pool.QueryRow(ctx,
+		`UPDATE nodes SET name=$1 WHERE id=$2
+		 RETURNING id, name, type, metadata, created_at`,
+		name, id,
+	).Scan(&n.ID, &n.Name, &n.Type, &n.Metadata, &n.CreatedAt)
+	if err != nil {
+		return model.Node{}, fmt.Errorf("update node: %w", err)
+	}
+	return n, nil
+}
+
+func (r *NodeRepo) Delete(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM nodes WHERE id=$1`, id)
+	if err != nil {
+		return fmt.Errorf("delete node: %w", err)
+	}
+	return nil
+}
