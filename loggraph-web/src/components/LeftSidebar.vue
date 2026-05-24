@@ -7,6 +7,7 @@ const props = defineProps<{
   projects: Node[]
   people: Node[]
   activeProject?: string
+  screenSize?: 'mobile' | 'tablet' | 'desktop'
 }>()
 
 const emit = defineEmits<{
@@ -86,8 +87,14 @@ async function doDelete(id: string) {
   try {
     await nodesApi.delete(id)
     deletingNodeId.value = null
+    activeNodeId.value = null
     emit('node-deleted')
   } catch { /* ignore */ }
+}
+
+// Toggle node selection on mobile (to show action buttons)
+function toggleNodeSelection(nodeId: string) {
+  activeNodeId.value = activeNodeId.value === nodeId ? null : nodeId
 }
 </script>
 
@@ -169,7 +176,7 @@ async function doDelete(id: string) {
                 : 'text-text-secondary hover:bg-surface-100',
               activeNodeId === p.id && 'bg-surface-100'
             ]"
-            @click="emit('select-project', p.name)"
+            @click="screenSize === 'desktop' ? emit('select-project', p.name) : toggleNodeSelection(p.id)"
           >
             <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-brand-300' : 'bg-brand-500'" />
             <input
@@ -225,7 +232,7 @@ async function doDelete(id: string) {
             :key="p.id"
             class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary hover:bg-surface-100"
             :class="{ 'bg-surface-100': activeNodeId === p.id }"
-            @click="emit('select-person', p.name)"
+            @click="screenSize === 'desktop' ? emit('select-person', p.name) : toggleNodeSelection(p.id)"
           >
             <span class="w-2 h-2 rounded-full bg-success shrink-0" />
             <input
