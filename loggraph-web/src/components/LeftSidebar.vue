@@ -255,7 +255,7 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
             ]"
             @click.stop="handleItemClick(p.id, p.name, 'project')"
           >
-            <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-accent-300' : 'bg-accent-500'" />
+            <span class="w-2 h-2 rounded-full shrink-0 bg-accent-500" />
             <input
               v-if="editingNodeId === p.id"
               ref="editInputRef"
@@ -266,7 +266,6 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
               @blur="saveEdit(p.id)"
             />
             <span v-else class="truncate">{{ p.name }}</span>
-            <span v-if="p.type === 'standard'" class="text-[9px] text-accent-400 shrink-0 ml-auto opacity-60 font-medium">STD</span>
             <!-- Mobile tap actions / Desktop hover actions -->
             <div
               v-if="editingNodeId !== p.id"

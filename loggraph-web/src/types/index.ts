@@ -11,7 +11,7 @@ export interface Block {
 export interface Node {
   id: string
   name: string
-  type: 'project' | 'person' | 'standard' | 'custom'
+  type: 'project' | 'person' | 'custom'
   metadata?: Record<string, any>
   created_at: string
 }

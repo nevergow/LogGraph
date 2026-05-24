@@ -19,7 +19,7 @@ var (
 // ParseResult holds everything extracted from a Block's content.
 type ParseResult struct {
 	Status     model.Status
-	Tags       []string // #project / #standard
+	Tags       []string // &project tags
 	Mentions   []string // @person
 	References []string // ^block-id
 }

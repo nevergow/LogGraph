@@ -9,9 +9,7 @@ const people = ref<Node[]>([])
 export function useNodes() {
   async function fetchProjects() {
     try {
-      const all = await nodesApi.list('project')
-      const std = await nodesApi.list('standard')
-      projects.value = [...all, ...std]
+      projects.value = await nodesApi.list('project')
     } catch (e) {
       console.error('Failed to fetch projects:', e)
     }

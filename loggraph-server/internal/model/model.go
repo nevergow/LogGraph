@@ -15,10 +15,9 @@ const (
 type NodeType string
 
 const (
-	NodeTypeProject  NodeType = "project"
-	NodeTypePerson   NodeType = "person"
-	NodeTypeStandard NodeType = "standard"
-	NodeTypeCustom   NodeType = "custom"
+	NodeTypeProject NodeType = "project"
+	NodeTypePerson  NodeType = "person"
+	NodeTypeCustom  NodeType = "custom"
 )
 
 type RelationType string

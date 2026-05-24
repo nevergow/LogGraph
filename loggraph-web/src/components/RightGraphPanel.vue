@@ -111,7 +111,6 @@ if (typeof window !== 'undefined') {
 const nodeTypeColors: Record<string, string> = {
   project: '#3b82f6',
   person: '#22c55e',
-  standard: '#f97316',
   custom: '#6b7280',
 }
 
@@ -285,7 +284,6 @@ const vfEdges = computed<VFEdge[]>(() => {
             :class="{
               'border-blue-200 bg-blue-50 text-blue-700': node.type === 'project',
               'border-green-200 bg-green-50 text-green-700': node.type === 'person',
-              'border-orange-200 bg-orange-50 text-orange-700': node.type === 'standard',
             }"
           >
             {{ node.type === 'person' ? '@' : '&' }}{{ node.name }}

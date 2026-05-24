@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        VARCHAR(255) NOT NULL,
     type        VARCHAR(32)  NOT NULL
-        CHECK (type IN ('project', 'person', 'standard', 'custom')),
+        CHECK (type IN ('project', 'person', 'custom')),
     metadata    JSONB        DEFAULT '{}',
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 

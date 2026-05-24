@@ -89,7 +89,7 @@ func (r *RelationRepo) GraphForBlock(ctx context.Context, blockID string) (*mode
 	return &model.GraphData{Block: block, Nodes: nodes, Edges: edges}, nil
 }
 
-// GraphForNode returns a graph centered on a node (project/person/standard).
+// GraphForNode returns a graph centered on a node (project/person).
 func (r *RelationRepo) GraphForNode(ctx context.Context, nodeID string) (*model.GraphData, error) {
 	// Fetch the node
 	var node model.Node

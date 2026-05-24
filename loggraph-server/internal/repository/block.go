@@ -38,19 +38,12 @@ func (r *BlockRepo) Create(ctx context.Context, input model.CreateBlockInput) (*
 		return nil, fmt.Errorf("insert block: %w", err)
 	}
 
-	// Upsert project / standard nodes from #tags
+	// Upsert project nodes from &tags
 	for _, name := range parsed.Tags {
-		nodeType := model.NodeTypeProject
-		for _, s := range []string{"GB", "ISO", "IEC", "GB/T", "QC/T"} {
-			if strings.HasPrefix(strings.ToUpper(name), s) {
-				nodeType = model.NodeTypeStandard
-				break
-			}
-		}
-		if err := r.upsertNode(ctx, tx, name, nodeType); err != nil {
+		if err := r.upsertNode(ctx, tx, name, model.NodeTypeProject); err != nil {
 			return nil, err
 		}
-		if err := r.insertRelation(ctx, tx, block.ID, "node", name, nodeType, model.RelationMentions); err != nil {
+		if err := r.insertRelation(ctx, tx, block.ID, "node", name, model.NodeTypeProject, model.RelationMentions); err != nil {
 			return nil, err
 		}
 	}
@@ -105,17 +98,10 @@ func (r *BlockRepo) Update(ctx context.Context, id string, input model.UpdateBlo
 			return nil, fmt.Errorf("delete old relations: %w", err)
 		}
 		for _, name := range parsed.Tags {
-			nodeType := model.NodeTypeProject
-			for _, s := range []string{"GB", "ISO", "IEC", "GB/T", "QC/T"} {
-				if strings.HasPrefix(strings.ToUpper(name), s) {
-					nodeType = model.NodeTypeStandard
-					break
-				}
-			}
-			if err := r.upsertNode(ctx, tx, name, nodeType); err != nil {
+			if err := r.upsertNode(ctx, tx, name, model.NodeTypeProject); err != nil {
 				return nil, err
 			}
-			if err := r.insertRelation(ctx, tx, block.ID, "node", name, nodeType, model.RelationMentions); err != nil {
+			if err := r.insertRelation(ctx, tx, block.ID, "node", name, model.NodeTypeProject, model.RelationMentions); err != nil {
 				return nil, err
 			}
 		}
@@ -179,7 +165,7 @@ func (r *BlockRepo) List(ctx context.Context, q model.BlockListQuery) (*model.Cu
 		conds = append(conds, fmt.Sprintf(
 			`id IN (SELECT source_id FROM relations r
 			        JOIN nodes n ON r.target_id=n.id AND r.target_type='node'
-			        WHERE n.name=$%d AND n.type IN ('project','standard') AND r.relation_type='mentions')`, len(args)+1))
+			        WHERE n.name=$%d AND n.type='project' AND r.relation_type='mentions')`, len(args)+1))
 		args = append(args, *q.Project)
 	}
 	if q.Person != nil && *q.Person != "" {
