@@ -1,9 +1,10 @@
 # LogGraph
 
-A minimal team workflow tool combining a timeline log stream, knowledge graph, and AI-powered report generation.
+Your work memory, connected. A minimal team workflow tool combining a timeline log stream, knowledge graph, and AI-powered report generation.
 
-- **Timeline** — post log entries with `#project` / `@person` / `^reference` tags
-- **Graph** — auto-built knowledge graph from parsed tags and relations
+- **Timeline** — post log entries with `&project` / `@person` / `^reference` tags; sticky date label on scroll
+- **Work Log Association** — link related logs with `^uuid` references; follow-up button auto-completes parent log
+- **Project View** — drag-and-drop cards between projects, per-project quick-add buttons, Unfiled pool
 - **AI Reports** — LLM-generated project summaries with date-range filtering
 - **Webhook** — receive logs from external systems (Lark, custom)
 

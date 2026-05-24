@@ -125,19 +125,19 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
 </script>
 
 <template>
-  <aside class="border-r border-border-subtle flex flex-col shrink-0 overflow-hidden bg-white/50" :class="collapsed ? 'items-center' : ''">
+  <aside class="border-r border-white/10 flex flex-col shrink-0 overflow-hidden glass" :class="collapsed ? 'items-center' : ''">
     <!-- Collapse toggle -->
     <div class="p-3 border-b border-border-subtle flex" :class="collapsed ? 'justify-center' : 'justify-between items-center'">
       <button
         v-if="!collapsed && activeProject"
-        class="text-[10px] text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-3 py-1 rounded-full transition-colors font-medium border border-brand-200/50"
+        class="text-[10px] text-accent-600 hover:text-accent-800 bg-accent-50 hover:bg-accent-100 px-3 py-1 rounded-full transition-colors font-medium border border-accent-200/50"
         @click="emit('clear-filters')"
       >
         Clear
       </button>
       <span v-if="!collapsed && !activeProject" />
       <button
-        class="text-text-muted hover:text-brand-600 hover:bg-brand-50 p-2 rounded-xl transition-colors shrink-0"
+        class="text-text-muted hover:text-accent-600 hover:bg-accent-50 p-2 rounded-xl transition-colors shrink-0"
         :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         @click="collapsed = !collapsed"
       >
@@ -154,7 +154,7 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
       <!-- Collapsed: icon-only strip -->
       <div class="flex-1 flex flex-col items-center gap-3 pt-4 overflow-y-auto">
         <button
-          class="p-3 rounded-xl hover:bg-brand-50 text-text-muted hover:text-brand-600 transition-colors"
+          class="p-3 rounded-xl hover:bg-accent-50 text-text-muted hover:text-accent-600 transition-colors"
           title="Projects"
           @click="collapsed = false"
         >
@@ -163,7 +163,7 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
           </svg>
         </button>
         <button
-          class="p-3 rounded-xl hover:bg-brand-50 text-text-muted hover:text-brand-600 transition-colors"
+          class="p-3 rounded-xl hover:bg-accent-50 text-text-muted hover:text-accent-600 transition-colors"
           title="People"
           @click="collapsed = false"
         >
@@ -198,24 +198,24 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
             class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift select-none"
             :class="[
               activeProject === p.name
-                ? 'bg-brand-50 text-brand-700 font-medium'
+                ? 'bg-accent-50 text-accent-700 font-medium'
                 : 'text-text-secondary',
-              activeNodeId === p.id ? 'bg-surface-100 ring-2 ring-brand-300' : 'hover:bg-surface-100'
+              activeNodeId === p.id ? 'bg-surface-100 ring-2 ring-accent-300' : 'hover:bg-surface-100'
             ]"
             @click.stop="handleItemClick(p.id, p.name, 'project')"
           >
-            <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-brand-300' : 'bg-brand-500'" />
+            <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-accent-300' : 'bg-accent-500'" />
             <input
               v-if="editingNodeId === p.id"
               ref="editInputRef"
               v-model="editingNodeName"
-              class="flex-1 min-w-0 text-xs border border-brand-300 rounded-lg px-2 py-1 outline-none bg-white"
+              class="flex-1 min-w-0 text-xs border border-accent-300 rounded-lg px-2 py-1 outline-none bg-white"
               @click.stop
               @keydown="onEditKeydown($event, p.id)"
               @blur="saveEdit(p.id)"
             />
             <span v-else class="truncate">{{ p.name }}</span>
-            <span v-if="p.type === 'standard'" class="text-[9px] text-brand-400 shrink-0 ml-auto opacity-60 font-medium">STD</span>
+            <span v-if="p.type === 'standard'" class="text-[9px] text-accent-400 shrink-0 ml-auto opacity-60 font-medium">STD</span>
             <!-- Mobile tap actions / Desktop hover actions -->
             <div
               v-if="editingNodeId !== p.id"
@@ -226,7 +226,7 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
               @click.stop
             >
               <button
-                class="p-1.5 rounded-lg text-text-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
                 title="Rename"
                 @click.stop="startEdit(p)"
               >
@@ -259,7 +259,7 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
             v-for="p in filteredPeople"
             :key="p.id"
             class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary select-none"
-            :class="activeNodeId === p.id ? 'bg-surface-100 ring-2 ring-brand-300' : 'hover:bg-surface-100'"
+            :class="activeNodeId === p.id ? 'bg-surface-100 ring-2 ring-accent-300' : 'hover:bg-surface-100'"
             @click.stop="handleItemClick(p.id, p.name, 'person')"
           >
             <span class="w-2 h-2 rounded-full bg-success shrink-0" />
@@ -267,7 +267,7 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
               v-if="editingNodeId === p.id"
               ref="editInputRef"
               v-model="editingNodeName"
-              class="flex-1 min-w-0 text-xs border border-brand-300 rounded-lg px-2 py-1 outline-none bg-white"
+              class="flex-1 min-w-0 text-xs border border-accent-300 rounded-lg px-2 py-1 outline-none bg-white"
               @click.stop
               @keydown="onEditKeydown($event, p.id)"
               @blur="saveEdit(p.id)"
@@ -283,7 +283,7 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
               @click.stop
             >
               <button
-                class="p-1.5 rounded-lg text-text-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
                 title="Rename"
                 @click.stop="startEdit(p)"
               >

@@ -77,6 +77,22 @@ func (r *NodeRepo) Suggest(ctx context.Context, query string, nodeType *string, 
 	return nodes, nil
 }
 
+// GetByNameAndType finds a node by exact name and type match. Returns nil if not found.
+func (r *NodeRepo) GetByNameAndType(ctx context.Context, name string, nodeType model.NodeType) (*model.Node, error) {
+	var n model.Node
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, name, type, metadata, created_at FROM nodes WHERE name=$1 AND type=$2`,
+		name, string(nodeType),
+	).Scan(&n.ID, &n.Name, &n.Type, &n.Metadata, &n.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get node by name and type: %w", err)
+	}
+	return &n, nil
+}
+
 func (r *NodeRepo) GetByID(ctx context.Context, id string) (*model.Node, error) {
 	var n model.Node
 	err := r.pool.QueryRow(ctx,

@@ -2,8 +2,38 @@
 
 All notable changes to LogGraph will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.7.0] — 2026-05-24
+
+### Added
+
+- **`&Name` project syntax** — new `&projectName` prefix replaces `#projectName` for project binding; avoids markdown heading/tag ambiguity
+- **Drag-and-drop between projects** — cards can be dragged between project groups in ProjectView; content auto-updates project tag
+- **Per-project quick-add button** — each project group has a "+" button to quickly add logs bound to that project
+- **Card follow-up button** — expanded cards have a "Follow-up" action that pre-fills SmartInput with project + reference; submitting auto-completes the parent card with a shrink/fade animation
+- **`^` reference search** — typing `^` in SmartInput shows a searchable popup of existing blocks; filtered by selected project; supports multi-select
+- **Related block visual signal** — blocks with `referenced_by` relations get an amber left-border gradient (30% width only) for subtle visual distinction
+- **Timeline sticky date label** — scrolling the timeline shows a sticky YYYY-MM-DD label that updates as cards pass the viewport
+- **Unfiled pool** — blocks without a project assignment appear in a dashed-border "Unfiled" section with inbox icon and CTA hint
+- **Micro knowledge graph (placeholder)** — sidebar prepared for a lightweight SVG-based connection graph
+
+### Changed
+
+- **Design baseline overhaul** — Electric Blue (`#2563EB`) replaces indigo/violet gradients; Geist + Geist Mono fonts replace Inter; three-layer depth system (Canvas/Surface/Chrome) replaces flat glassmorphism; cards use solid white + subtle borders instead of backdrop-blur
+- **Logo** — replaced gradient "LG" square with SVG two-dots-and-line mark symbolizing "your work memory, connected"
+- **SmartInput** — placeholder updated to `&project @person ^reference`; `#` autocomplete replaced with `&`; project dropdown prepends `&Name` instead of `#Name`; new `prefillProject`/`prefillContent` props for follow-up flow
+- **BlockCard** — footer action bar now includes "Connections" and "Follow-up" buttons; amber border gradient for related blocks; supports `draggable` prop
+
+### Fixed
+
+- **Node rename conflict** — renaming a project/person to an existing name now returns HTTP 409 instead of silently merging logs
+- **Header menu blur** — three-dot dropdown now uses solid white background instead of glass-strong with backdrop-blur
+- **Stale project selector** — `useNodes` refs moved to module-level singletons; all components share the same reactive state
+
+### Removed
+
+- **Graph slide-over panel** — RightGraphPanel and full-screen Vue Flow overlay replaced with planned micro SVG graph in sidebar
+- **`#Name` autocomplete** — frontend no longer suggests `#` for project binding; `&` is the only suggestion trigger
+- **Mobile Graph button** — removed from header
 
 ## [0.6.0] — 2026-05-22
 

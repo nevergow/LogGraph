@@ -11,6 +11,7 @@ var (
 	reStrikethrough = regexp.MustCompile(`~~(.+?)~~`)
 	reBlocked       = regexp.MustCompile(`\[BLOCK\]`)
 	reTag           = regexp.MustCompile(`#([^\s#@^~\[\].,;:!?，。；：！？]+)`)
+	reAmpersand     = regexp.MustCompile(`&([^\s#@^~\[\].,;:!?，。；：！？]+)`)
 	reMention       = regexp.MustCompile(`@([^\s#@^~\[\].,;:!?，。；：！？]+)`)
 	reReference     = regexp.MustCompile(`\^([0-9a-fA-F-]{36})`)
 )
@@ -34,6 +35,9 @@ func Parse(content string) ParseResult {
 	}
 
 	for _, m := range reTag.FindAllStringSubmatch(content, -1) {
+		r.Tags = append(r.Tags, strings.TrimSpace(m[1]))
+	}
+	for _, m := range reAmpersand.FindAllStringSubmatch(content, -1) {
 		r.Tags = append(r.Tags, strings.TrimSpace(m[1]))
 	}
 	for _, m := range reMention.FindAllStringSubmatch(content, -1) {

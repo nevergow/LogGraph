@@ -2,22 +2,31 @@ import { ref } from 'vue'
 import type { Node } from '../types'
 import { nodesApi } from '../api/nodes'
 
-export function useNodes() {
-  const projects = ref<Node[]>([])
-  const people = ref<Node[]>([])
+// Module-level singletons — all callers share the same reactive refs (Bug 3 fix)
+const projects = ref<Node[]>([])
+const people = ref<Node[]>([])
 
+export function useNodes() {
   async function fetchProjects() {
-    const all = await nodesApi.list('project')
-    const std = await nodesApi.list('standard')
-    projects.value = [...all, ...std]
+    try {
+      const all = await nodesApi.list('project')
+      const std = await nodesApi.list('standard')
+      projects.value = [...all, ...std]
+    } catch (e) {
+      console.error('Failed to fetch projects:', e)
+    }
   }
 
   async function fetchPeople() {
-    people.value = await nodesApi.list('person')
+    try {
+      people.value = await nodesApi.list('person')
+    } catch (e) {
+      console.error('Failed to fetch people:', e)
+    }
   }
 
-  async function suggest(query: string, type: 'project' | 'person'): Promise<Node[]> {
-    return nodesApi.suggest(query, type)
+  async function suggest(query: string, type?: string, limit = 5): Promise<Node[]> {
+    return nodesApi.suggest(query, type, limit)
   }
 
   async function suggestBlocks(query: string): Promise<any[]> {

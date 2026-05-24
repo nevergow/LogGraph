@@ -26,6 +26,7 @@ const emit = defineEmits<{
   archive: [id: string]
   delete: [id: string]
   'request-edit': [id: string]
+  'request-followup': [block: Block]
 }>()
 
 const hideCompleted = ref(false)
@@ -43,7 +44,7 @@ onUnmounted(() => {
 function nodeColor(s: string): string {
   if (s === 'completed') return 'bg-emerald-400'
   if (s === 'blocked') return 'bg-red-400'
-  return 'bg-brand-400'
+  return 'bg-accent-400'
 }
 
 function onTimelineTouchMove(e: TouchEvent, list: Block[]) {
@@ -91,12 +92,58 @@ function formatTime(ts: string): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
+
+function formatDate(ts: string): string {
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// ── Phase 3: Sticky date label on scroll ──
+const currentDateLabel = ref('')
+const dateLabelVisible = ref(false)
+
+function onTimelineScroll() {
+  const container = document.getElementById('timeline-scroll')
+  if (!container) return
+  const cards = container.querySelectorAll('.timeline-card')
+  if (cards.length === 0) {
+    dateLabelVisible.value = false
+    return
+  }
+
+  const viewportTop = container.getBoundingClientRect().top + 60
+  let closestCard: Element | null = null
+  let minDist = Infinity
+
+  cards.forEach(card => {
+    const rect = card.getBoundingClientRect()
+    const cardTop = rect.top
+    const dist = Math.abs(cardTop - viewportTop)
+    if (dist < minDist) {
+      minDist = dist
+      closestCard = card
+    }
+  })
+
+  if (closestCard) {
+    const blockId = (closestCard as HTMLElement).dataset.blockId
+    const block = visibleBlocks.value.find(b => b.id === blockId)
+    if (block) {
+      const newLabel = formatDate(block.created_at)
+      if (newLabel !== currentDateLabel.value) {
+        currentDateLabel.value = newLabel
+        dateLabelVisible.value = true
+      }
+    }
+  }
+}
 </script>
 
 <template>
-  <main class="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
+  <main class="flex-1 flex flex-col overflow-hidden bg-surface-canvas">
     <!-- Filter bar -->
-    <div class="px-3 sm:px-4 py-2 border-b border-gray-200 bg-white flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
+    <div class="px-3 sm:px-4 py-2 border-b border-slate-200 bg-white flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
       <FilterBar
         :count="visibleBlocks.length"
         :hide-completed="hideCompleted"
@@ -108,9 +155,9 @@ function formatTime(ts: string): string {
         @filter-change="(key, value) => emit('filter-change', key, value)"
       />
 
-      <div class="w-px h-4 bg-gray-200" />
+      <div class="w-px h-4 bg-slate-200" />
       <select
-        class="text-xs border border-gray-200 rounded-sm px-2 py-1 bg-white text-gray-500 outline-none focus:border-brand-300 transition-colors max-w-[140px]"
+        class="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-500 outline-none focus:border-accent-300 transition-colors max-w-[140px]"
         :value="props.projectFilter || ''"
         @change="emit('filter-change', 'project', ($event.target as HTMLSelectElement).value || undefined)"
       >
@@ -119,11 +166,21 @@ function formatTime(ts: string): string {
       </select>
     </div>
 
+    <!-- Sticky date label (Phase 3) -->
+    <div
+      v-if="dateLabelVisible"
+      class="sticky top-0 z-10 flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-sm text-xs font-mono tabular-nums tracking-wider text-slate-400 border-b border-slate-100 transition-opacity duration-150"
+      :class="screenSize === 'mobile' ? 'text-[10px]' : ''"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-slate-300" />
+      {{ currentDateLabel }}
+    </div>
+
     <!-- Timeline -->
-    <div id="timeline-scroll" class="flex-1 overflow-y-auto px-4 py-3">
+    <div id="timeline-scroll" class="flex-1 overflow-y-auto px-4 py-3" @scroll.passive="onTimelineScroll">
       <div v-if="hasMore" class="text-center pb-3">
         <button
-          class="text-xs text-brand-600 hover:text-brand-800 disabled:opacity-40 font-medium"
+          class="text-xs text-accent-600 hover:text-accent-800 disabled:opacity-40 font-medium"
           :disabled="loading"
           @click="emit('load-more')"
         >
@@ -131,7 +188,6 @@ function formatTime(ts: string): string {
         </button>
       </div>
 
-      <!-- Skeleton loading (initial load only) -->
       <SkeletonCard v-if="loading && visibleBlocks.length === 0" :count="4" />
 
       <TransitionGroup v-else name="card-list" tag="div" class="space-y-0">
@@ -139,6 +195,7 @@ function formatTime(ts: string): string {
           v-for="block in visibleBlocks"
           :key="block.id"
           class="timeline-card flex gap-3"
+          :data-block-id="block.id"
         >
           <!-- Vertical timeline axis -->
           <div
@@ -147,12 +204,12 @@ function formatTime(ts: string): string {
             @touchmove.prevent="onTimelineTouchMove($event, visibleBlocks)"
             @touchend="onTimelineTouchEnd"
           >
-            <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-200 -translate-x-1/2" />
+            <div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-slate-200 -translate-x-1/2" />
             <div
               class="relative z-10 w-2.5 h-2.5 rounded-full mt-3 shrink-0 ring-2 ring-white"
               :class="nodeColor(block.status)"
             />
-            <span class="relative z-10 text-[9px] text-gray-400 mt-0.5 tabular-nums leading-none whitespace-nowrap">{{ formatTime(block.created_at) }}</span>
+            <span class="relative z-10 text-[9px] text-slate-400 mt-0.5 tabular-nums leading-none whitespace-nowrap font-mono">{{ formatTime(block.created_at) }}</span>
           </div>
 
           <!-- Card -->
@@ -166,6 +223,7 @@ function formatTime(ts: string): string {
               @archive="id => emit('archive', id)"
               @delete="id => emit('delete', id)"
               @request-edit="id => emit('request-edit', id)"
+              @request-followup="block => emit('request-followup', block)"
             />
           </div>
         </div>
@@ -175,19 +233,19 @@ function formatTime(ts: string): string {
       <Teleport to="body">
         <div
           v-if="tooltipVisible"
-          class="fixed z-50 px-3 py-1.5 bg-gray-900 rounded-sm shadow-elevated text-xs font-mono text-white pointer-events-none transition-opacity"
+          class="fixed z-50 px-3 py-1.5 bg-slate-900 rounded-lg shadow-elevated text-xs font-mono text-white pointer-events-none transition-opacity"
           :style="tooltipStyle()"
         >
           {{ tooltipTime }}
         </div>
       </Teleport>
 
-      <div v-if="visibleBlocks.length === 0 && !loading" class="text-center py-20 text-gray-400">
-        <svg class="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div v-if="visibleBlocks.length === 0 && !loading" class="text-center py-20 text-slate-400">
+        <svg class="w-10 h-10 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <div class="text-sm font-medium text-gray-500 mb-1">No entries yet</div>
-        <div class="text-xs text-gray-400">Type a message below to start logging.</div>
+        <div class="text-sm font-medium text-slate-500 mb-1">No entries yet</div>
+        <div class="text-xs text-slate-400">Type a message below to start logging.</div>
       </div>
     </div>
   </main>

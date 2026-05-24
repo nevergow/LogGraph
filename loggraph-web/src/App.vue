@@ -4,7 +4,6 @@ import type { Block } from './types'
 import LeftSidebar from './components/LeftSidebar.vue'
 import CenterTimeline from './components/CenterTimeline.vue'
 import ProjectView from './components/ProjectView.vue'
-import RightGraphPanel from './components/RightGraphPanel.vue'
 import SmartInput from './components/SmartInput.vue'
 import WebhookSettings from './components/WebhookSettings.vue'
 import AIPanel from './components/AIPanel.vue'
@@ -23,8 +22,11 @@ const { showToast } = useToast()
 const currentView = ref<'project' | 'timeline'>('project')
 const showWebhooks = ref(false)
 const showAI = ref(false)
-const showGraph = ref(false)
 const editingBlockId = ref<string | null>(null)
+
+// SmartInput prefill state (for follow-up button)
+const inputPrefillProject = ref<string | undefined>(undefined)
+const inputPrefillContent = ref<string | undefined>(undefined)
 
 const editingBlock = computed<Block | null>(() =>
   editingBlockId.value ? blocks.value.find(b => b.id === editingBlockId.value) ?? null : null
@@ -92,12 +94,6 @@ function startResize() {
   document.body.style.userSelect = 'none'
 }
 
-const selectedProjectNodeId = computed(() => {
-  if (!filters.project) return null
-  const node = projects.value.find(p => p.name === filters.project)
-  return node?.id || null
-})
-
 function onDocumentClick() {
   if (showHeaderMenu.value) showHeaderMenu.value = false
 }
@@ -120,10 +116,16 @@ onUnmounted(() => {
 
 // ── Actions ──
 
-async function handleCreate(content: string, metadata?: Record<string, any>) {
+async function handleCreate(content: string, metadata?: Record<string, any>, parentBlockId?: string) {
   await createBlock(content, metadata)
+  if (parentBlockId) {
+    await updateBlock(parentBlockId, { status: 'completed' })
+  }
   fetchProjects()
   fetchPeople()
+  // Clear prefill state
+  inputPrefillProject.value = undefined
+  inputPrefillContent.value = undefined
 }
 
 async function handleToggleStatus(id: string, current: string) {
@@ -141,6 +143,21 @@ function handleDelete(id: string) {
   showToast('已删除 1 条日志', { label: '撤销', handler: () => undoDelete(id) })
 }
 
+// ── Phase 1.4: Drag-drop between projects ──
+async function handleMoveBlock(id: string, newContent: string) {
+  await updateBlock(id, { content: newContent })
+  fetchProjects()
+  fetchPeople()
+}
+
+// ── Phase 2.1: Follow-up from card ──
+function handleRequestFollowup(block: Block) {
+  const match = block.content.match(/(?:^|\s)[&]([^\s&][^\s]*)/)
+  const project = match ? match[1] : undefined
+  inputPrefillProject.value = project
+  inputPrefillContent.value = `^${block.id} `
+}
+
 function handleSelectProject(name: string) {
   setFilter('project', name)
   showLeftOverlay.value = false
@@ -154,7 +171,6 @@ function handleCommand(action: string) {
   switch (action) {
     case 'view-project': currentView.value = 'project'; break
     case 'view-timeline': currentView.value = 'timeline'; break
-    case 'graph': showGraph.value = true; break
     case 'ai-report': showAI.value = true; break
     case 'webhooks': showWebhooks.value = true; break
     case 'clear-filters': clearAllFilters(); break
@@ -165,26 +181,31 @@ function handleCommand(action: string) {
 
 <template>
   <div class="h-full flex flex-col">
-    <!-- Header (consolidated: logo + segmented control + actions) -->
-    <header class="h-14 px-5 flex items-center justify-between shrink-0 glass border-b border-white/20">
+    <!-- Header — Liquid Glass Chrome -->
+    <header class="h-14 px-5 flex items-center justify-between shrink-0 glass border-b border-white/10">
       <div class="flex items-center gap-3">
-        <!-- Logo with gradient background -->
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-md">
-          <span class="text-white font-bold text-xs">LG</span>
+        <!-- Logo: two dots + connecting line (Phase 6) -->
+        <div class="w-8 h-8 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" class="w-6 h-6 text-accent-600">
+            <circle cx="7" cy="7" r="3.5" fill="currentColor" opacity="0.6" />
+            <circle cx="17" cy="17" r="3.5" fill="currentColor" />
+            <line x1="9.5" y1="9.5" x2="14.5" y2="14.5"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
         </div>
         <span class="font-semibold text-sm tracking-tight text-text-primary">LogGraph</span>
 
-        <!-- Segmented control (in header) -->
-        <div class="ml-2 inline-flex bg-surface-100 rounded-xl p-1">
+        <!-- Segmented control -->
+        <div class="ml-2 inline-flex bg-surface-100 rounded-lg p-1">
           <button
-            class="px-4 py-1.5 text-xs font-medium rounded-lg transition-all duration-200"
+            class="px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200"
             :class="currentView === 'project' ? 'bg-white shadow-sm text-text-primary' : 'text-text-secondary hover:text-text-primary'"
             @click="currentView = 'project'"
           >
             Projects
           </button>
           <button
-            class="px-4 py-1.5 text-xs font-medium rounded-lg transition-all duration-200"
+            class="px-4 py-1.5 text-xs font-medium rounded-md transition-all duration-200"
             :class="currentView === 'timeline' ? 'bg-white shadow-sm text-text-primary' : 'text-text-secondary hover:text-text-primary'"
             @click="currentView = 'timeline'"
           >
@@ -195,7 +216,7 @@ function handleCommand(action: string) {
         <!-- Active filter pill -->
         <button
           v-if="hasActiveFilter"
-          class="flex items-center gap-1.5 px-3 py-1 text-[11px] text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors font-medium border border-brand-200/50"
+          class="flex items-center gap-1.5 px-3 py-1 text-[11px] text-accent-600 bg-accent-50 hover:bg-accent-100 rounded-full transition-colors font-medium border border-accent-200/50"
           @click="clearAllFilters()"
         >
           <span>Filtered</span>
@@ -208,7 +229,7 @@ function handleCommand(action: string) {
         <!-- Mobile panel toggles -->
         <button
           v-if="screenSize !== 'desktop'"
-          class="text-xs text-text-secondary hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
+          class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
           @click="showLeftOverlay = true"
           title="Filters & Projects"
         >
@@ -216,21 +237,11 @@ function handleCommand(action: string) {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
         </button>
-        <button
-          v-if="screenSize !== 'desktop'"
-          class="text-xs text-text-secondary hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
-          @click="showGraph = true"
-          title="Graph"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-        </button>
 
-        <!-- Consolidated actions menu -->
+        <!-- Consolidated actions menu (Bug 2 fixed: no glass-strong, solid white) -->
         <div class="relative" @click.stop>
           <button
-            class="text-xs text-text-secondary hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
+            class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
             @click="showHeaderMenu = !showHeaderMenu"
             title="More"
           >
@@ -240,20 +251,11 @@ function handleCommand(action: string) {
           </button>
           <div
             v-if="showHeaderMenu"
-            class="absolute right-0 top-full mt-2 glass-strong border border-white/50 rounded-2xl shadow-glass z-50 py-2 min-w-[160px]"
+            class="absolute right-0 top-full mt-2 bg-white border border-slate-200 shadow-elevated rounded-xl z-50 py-2 min-w-[160px]"
             @click.stop
           >
             <button
-              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
-              @click="showGraph = true; showHeaderMenu = false"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-              Graph
-            </button>
-            <button
-              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-accent-50 hover:text-accent-700 transition-colors flex items-center gap-3"
               @click="showAI = !showAI; showHeaderMenu = false"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,7 +264,7 @@ function handleCommand(action: string) {
               AI Report
             </button>
             <button
-              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-accent-50 hover:text-accent-700 transition-colors flex items-center gap-3"
               @click="showWebhooks = !showWebhooks; showHeaderMenu = false"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,7 +274,7 @@ function handleCommand(action: string) {
             </button>
             <div class="border-t border-border-subtle my-2" />
             <button
-              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-accent-50 hover:text-accent-700 transition-colors flex items-center gap-3"
               @click="showHeatmap = !showHeatmap; showHeaderMenu = false"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,7 +290,7 @@ function handleCommand(action: string) {
     <!-- Heatmap popover -->
     <div
       v-if="showHeatmap"
-      class="fixed top-14 right-4 z-40 glass-strong rounded-2xl shadow-glass border border-white/50 p-4 w-80"
+      class="fixed top-14 right-4 z-40 bg-white border border-slate-200 rounded-2xl shadow-elevated p-4 w-80"
       @click.stop
     >
       <div class="flex items-center justify-between mb-3">
@@ -305,7 +307,7 @@ function handleCommand(action: string) {
 
     <!-- Main content area -->
     <div class="flex-1 flex overflow-hidden">
-      <!-- Desktop layout: sidebar + content (graph on demand) -->
+      <!-- Desktop layout -->
       <template v-if="screenSize === 'desktop'">
         <LeftSidebar
           :style="{ width: leftWidth + 'px' }"
@@ -320,7 +322,7 @@ function handleCommand(action: string) {
           @node-deleted="fetchProjects(); fetchPeople()"
         />
         <div
-          class="w-1 cursor-col-resize bg-transparent hover:bg-brand-300/50 transition-colors shrink-0 rounded-full"
+          class="w-1 cursor-col-resize bg-transparent hover:bg-accent-300/50 transition-colors shrink-0 rounded-full"
           @mousedown="startResize()"
         />
 
@@ -333,12 +335,14 @@ function handleCommand(action: string) {
           :selected-id="selectedBlockId"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-
           @toggle-status="handleToggleStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
+          @request-followup="handleRequestFollowup"
+          @move-block="handleMoveBlock"
+          @create-in-project="(content) => handleCreate(content)"
         />
         <CenterTimeline
           v-else
@@ -354,16 +358,16 @@ function handleCommand(action: string) {
           :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
+          @request-followup="handleRequestFollowup"
         />
       </template>
 
-      <!-- Tablet layout: global sidebar + content -->
+      <!-- Tablet layout -->
       <template v-else-if="screenSize === 'tablet'">
         <LeftSidebar
           style="width: 180px"
@@ -387,12 +391,14 @@ function handleCommand(action: string) {
           :selected-id="selectedBlockId"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-
           @toggle-status="handleToggleStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
+          @request-followup="handleRequestFollowup"
+          @move-block="handleMoveBlock"
+          @create-in-project="(content) => handleCreate(content)"
         />
         <CenterTimeline
           v-else
@@ -408,16 +414,16 @@ function handleCommand(action: string) {
           :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
+          @request-followup="handleRequestFollowup"
         />
       </template>
 
-      <!-- Mobile layout: content only, both panels as overlays -->
+      <!-- Mobile layout -->
       <template v-else>
         <ProjectView
           v-if="currentView === 'project'"
@@ -428,12 +434,14 @@ function handleCommand(action: string) {
           :selected-id="selectedBlockId"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-
           @toggle-status="handleToggleStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
+          @request-followup="handleRequestFollowup"
+          @move-block="handleMoveBlock"
+          @create-in-project="(content) => handleCreate(content)"
         />
         <CenterTimeline
           v-else
@@ -449,21 +457,24 @@ function handleCommand(action: string) {
           :until-date="filters.until"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
-
           @toggle-status="handleToggleStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
+          @request-followup="handleRequestFollowup"
         />
       </template>
     </div>
 
     <SmartInput
+      :prefill-project="inputPrefillProject"
+      :prefill-content="inputPrefillContent"
       @send="handleCreate"
+      @clear-prefill="inputPrefillProject = undefined; inputPrefillContent = undefined"
     />
 
-    <!-- Mobile/Tablet overlays (Teleported to body) -->
+    <!-- Mobile/Tablet overlays -->
     <Teleport to="body">
       <!-- Left panel overlay -->
       <div
@@ -471,7 +482,7 @@ function handleCommand(action: string) {
         class="fixed inset-0 z-50"
       >
         <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showLeftOverlay = false" />
-        <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-glass overflow-y-auto rounded-r-2xl">
+        <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-elevated overflow-y-auto rounded-r-2xl">
           <div class="flex justify-end p-3">
             <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showLeftOverlay = false">&times;</button>
           </div>
@@ -485,24 +496,6 @@ function handleCommand(action: string) {
             @clear-filters="setFilter('project', undefined); setFilter('person', undefined); showLeftOverlay = false"
             @node-updated="fetchProjects(); fetchPeople()"
             @node-deleted="fetchProjects(); fetchPeople()"
-          />
-        </aside>
-      </div>
-
-      <!-- Graph slide-over (all screen sizes) -->
-      <div
-        v-if="showGraph"
-        class="fixed inset-0 z-50 flex justify-end"
-      >
-        <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showGraph = false" />
-        <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-glass overflow-y-auto rounded-l-2xl">
-          <div class="flex justify-end p-3">
-            <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showGraph = false">&times;</button>
-          </div>
-          <RightGraphPanel
-            :block-id="selectedBlockId"
-            :project-node-id="selectedProjectNodeId"
-            :project-name="filters.project ?? null"
           />
         </aside>
       </div>

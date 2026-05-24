@@ -4,45 +4,55 @@
 @import "@vue-flow/core/dist/theme-default.css";
 @import "highlight.js/styles/github-dark.css";
 
+/* === Geist + Geist Mono (replaces Inter) === */
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
+
 @theme {
-  /* Brand — warm indigo */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
+  /* Accent — Electric Blue (LILA BAN: no purple/violet gradients) */
+  --color-accent-50: #EFF6FF;
+  --color-accent-100: #DBEAFE;
+  --color-accent-200: #BFDBFE;
+  --color-accent-300: #93C5FD;
+  --color-accent-400: #60A5FA;
+  --color-accent-500: #3B82F6;
+  --color-accent-600: #2563EB;
+  --color-accent-700: #1D4ED8;
+  --color-accent-800: #1E40AF;
 
-  /* Violet accent for gradients */
-  --color-violet-50: #f5f3ff;
-  --color-violet-100: #ede9fe;
-  --color-violet-500: #8b5cf6;
-  --color-violet-600: #7c3aed;
-
-  /* Surface — two surfaces only */
-  --color-surface-0: #ffffff;
-  --color-surface-50: #f8fafc;
+  /* Surface — 3-layer depth system */
+  --color-surface-canvas: #fafaf9;
+  --color-surface-card: #ffffff;
+  --color-surface-chrome: rgba(255, 255, 255, 0.92);
   --color-surface-100: #f1f5f9;
+  --color-surface-50: #f8fafc;
 
-  /* Border — single subtle border */
-  --color-border-light: #e2e8f0;
+  /* Border */
   --color-border-subtle: #f1f5f9;
+  --color-border-light: #e2e8f0;
 
   /* Text */
   --color-text-primary: #0f172a;
   --color-text-secondary: #475569;
   --color-text-muted: #94a3b8;
 
-  /* Semantic — 3 colors: success, danger, and brand handles the rest */
-  --color-success: #10b981;
+  /* Semantic — 3 colors */
+  --color-success: #059669;
   --color-success-light: #d1fae5;
-  --color-danger: #ef4444;
+  --color-danger: #DC2626;
   --color-danger-light: #fee2e2;
 
-  /* Typography — 3 sizes */
+  /* Keep backward compat aliases for component migration */
+  --color-brand-50: var(--color-accent-50);
+  --color-brand-100: var(--color-accent-100);
+  --color-brand-200: var(--color-accent-200);
+  --color-brand-300: var(--color-accent-300);
+  --color-brand-400: var(--color-accent-400);
+  --color-brand-500: var(--color-accent-500);
+  --color-brand-600: var(--color-accent-600);
+  --color-brand-700: var(--color-accent-700);
+  --color-brand-800: var(--color-accent-800);
+
+  /* Typography */
   --font-size-caption: 0.6875rem;
   --font-size-body: 0.8125rem;
   --font-size-heading: 0.9375rem;
@@ -50,16 +60,18 @@
   /* Spacing */
   --spacing-section: 1.5rem;
 
-  /* Shadow — elevated + soft glass */
-  --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.12);
+  /* Shadow — diffusion shadows > hard shadows */
+  --shadow-elevated: 0 4px 16px -8px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0 2px 12px -6px rgba(0, 0, 0, 0.06);
 
-  /* Border radius — 3 sizes: controls (6px), cards (10px), xl (16px) */
+  /* Border radius */
   --radius-sm: 0.375rem;
   --radius-md: 0.625rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
 
   /* Z-index scale */
   --z-sidebar: 10;
@@ -72,24 +84,44 @@
 html, body, #app {
   height: 100%;
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #f8fafc 0%, #ede9fe 50%, #f8fafc 100%);
+  font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background: var(--color-surface-canvas);
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glass morphism utilities */
+/* === Grain noise overlay (Layer 0 — Canvas) === */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* === Liquid Glass (Layer 2 — Chrome) === */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* === Card Surface (Layer 1) — no glass, no blur === */
+.card-surface {
+  background: var(--color-surface-card);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-card);
 }
 
 /* Vue Flow overrides */
@@ -109,28 +141,28 @@ html, body, #app {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c7d2fe;
+  background: #bfdbfe;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a5b4fc;
+  background: #93c5fd;
 }
 
-/* Gradient text utility */
+/* Gradient text utility — single-hue only */
 .text-gradient {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #2563EB, #3B82F6);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Card hover lift animation */
+/* Card hover lift */
 .card-lift {
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 .card-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-hover);
 }
 
 /* Transitions */
@@ -164,7 +196,7 @@ html, body, #app {
 .prose img { max-width: 100%; }
 .prose pre { overflow-x: auto; }
 
-/* Mobile safe area for notched devices */
+/* Mobile safe area */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
@@ -185,7 +217,7 @@ html, body, #app {
   transform: translateX(-16px);
 }
 
-/* Done status: subtle opacity reduction only */
+/* Done status */
 .block-done .prose {
   opacity: 0.4;
 }
@@ -215,4 +247,61 @@ html, body, #app {
 }
 .tooltip-fade-leave-to {
   opacity: 0;
+}
+
+/* === Phase 5: Animation system === */
+
+/* Card entrance slide-down */
+.block-card-enter {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Card delete exit */
+.block-card-leave {
+  animation: slideRight 0.2s ease-in forwards;
+}
+@keyframes slideRight {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(24px); }
+}
+
+/* Follow-up done transition */
+.block-done-transition {
+  transition: border-color 0.4s ease, opacity 0.4s ease, transform 0.3s ease;
+}
+
+/* Card expand/collapse via grid trick */
+.card-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-body.expanded {
+  grid-template-rows: 1fr;
+}
+.card-body-inner {
+  overflow: hidden;
+}
+
+/* Related block signal — amber gradient 30% left only */
+.block-related {
+  border-left: 3px solid #F59E0B;
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.04) 0%,
+    transparent 30%
+  );
+}
+
+/* Empty state blinking cursor */
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }

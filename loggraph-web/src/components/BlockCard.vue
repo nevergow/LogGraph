@@ -7,6 +7,7 @@ const props = defineProps<{
   block: Block
   selected: boolean
   screenSize?: 'mobile' | 'tablet' | 'desktop'
+  draggable?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -15,6 +16,8 @@ const emit = defineEmits<{
   archive: [id: string]
   delete: [id: string]
   'request-edit': [id: string]
+  'request-followup': [block: Block]
+  'request-graph': [id: string]
 }>()
 
 const viewMode = ref<'compact' | 'expanded'>('compact')
@@ -40,12 +43,17 @@ onUnmounted(() => {
 function borderColor(s: string): string {
   if (s === 'completed') return 'border-l-success'
   if (s === 'blocked') return 'border-l-danger'
-  return 'border-l-brand-500'
+  return 'border-l-accent-500'
 }
 
 function renderContent(text: string): string {
   return renderMarkdown(text)
 }
+
+// Related blocks get amber signal
+const hasRelations = computed(() =>
+  props.block.referenced_by && props.block.referenced_by.length > 0
+)
 
 // ── Swipe (mobile only) ──
 const swipeX = ref(0)
@@ -103,12 +111,24 @@ const swipeRightOpacity = computed(() => {
   if (swipeX.value <= 0 || props.screenSize !== 'mobile') return 0
   return Math.min(Math.abs(swipeX.value) / 60, 1)
 })
+
+// ── Drag (Phase 1.4) ──
+function onDragStart(e: DragEvent) {
+  if (!props.draggable) return
+  const match = props.block.content.match(/(?:^|\s)[&]([^\s&][^\s]*)/)
+  const project = match ? match[1] : 'Unfiled'
+  e.dataTransfer!.effectAllowed = 'move'
+  e.dataTransfer!.setData('application/x-block-id', props.block.id)
+  e.dataTransfer!.setData('application/x-from-project', project)
+}
 </script>
 
 <template>
   <div
-    ref="cardRef"
-    class="group relative overflow-hidden rounded-md"
+    class="group relative overflow-hidden rounded-xl"
+    :class="{ 'cursor-grab active:cursor-grabbing': draggable }"
+    :draggable="draggable"
+    @dragstart="onDragStart"
     @touchstart.passive="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
@@ -129,14 +149,15 @@ const swipeRightOpacity = computed(() => {
       </div>
     </div>
 
-    <!-- Card -->
+    <!-- Card — card-surface replaces glass -->
     <div
-      class="bg-white/90 backdrop-blur-sm rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 relative z-10 border-l-[4px] card-lift"
+      class="card-surface rounded-xl cursor-pointer transition-all duration-200 hover:shadow-card-hover relative z-10 border-l-[3px]"
       :class="[
-        borderColor(block.status),
+        hasRelations ? 'block-related' : borderColor(block.status),
         {
-          'bg-brand-50/70 border-l-brand-500': selected,
+          'bg-accent-50/70 border-l-accent-500': selected,
           'block-done': block.status === 'completed',
+          'block-done-transition': true,
           'p-4': viewMode !== 'compact',
           'p-3': viewMode === 'compact',
         }
@@ -144,7 +165,7 @@ const swipeRightOpacity = computed(() => {
       :style="swipeStyle"
       @click="viewMode === 'compact' ? viewMode = 'expanded' : (viewMode === 'expanded' ? viewMode = 'compact' : null)"
     >
-      <!-- Desktop: three-dot dropdown (hover only) -->
+      <!-- Desktop: three-dot dropdown -->
       <div v-if="viewMode !== 'compact'" class="flex justify-end mb-3">
         <div
           v-if="screenSize === 'desktop'"
@@ -152,7 +173,7 @@ const swipeRightOpacity = computed(() => {
           @click.stop
         >
           <button
-            class="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors"
+            class="p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors"
             title="More actions"
             @click="toggleMoreMenu"
           >
@@ -164,11 +185,11 @@ const swipeRightOpacity = computed(() => {
           </button>
           <div
             v-if="showMoreMenu"
-            class="absolute right-0 top-full mt-2 glass-strong rounded-xl shadow-glass border border-white/50 z-50 py-2 min-w-[140px]"
+            class="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-elevated z-50 py-2 min-w-[140px]"
             @click.stop
           >
             <button
-              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-brand-50 hover:text-brand-700 transition-colors flex items-center gap-3"
+              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-accent-50 hover:text-accent-700 transition-colors flex items-center gap-3"
               @click="emit('request-edit', block.id); closeMoreMenu()"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,22 +230,46 @@ const swipeRightOpacity = computed(() => {
 
       <!-- ── Expanded mode ── -->
       <template v-if="viewMode === 'expanded'">
-        <div
-          class="text-sm leading-relaxed text-text-primary prose prose-sm max-w-none"
-          v-html="renderContent(block.content)"
-        />
-        <div class="flex items-center gap-3 mt-3 pt-2 border-t border-border-subtle">
+        <div class="card-body expanded">
+          <div class="card-body-inner">
+            <div
+              class="text-sm leading-relaxed text-text-primary prose prose-sm max-w-none"
+              v-html="renderContent(block.content)"
+            />
+          </div>
+        </div>
+        <div class="flex items-center justify-between mt-3 pt-2 border-t border-border-subtle">
+          <div class="flex items-center gap-3">
+            <button
+              class="text-xs text-accent-600 hover:text-accent-800 font-semibold transition-colors"
+              @click.stop="emit('request-edit', block.id)"
+            >
+              Edit
+            </button>
+            <button
+              class="text-xs text-text-muted hover:text-text-primary font-medium transition-colors"
+              @click.stop="viewMode = 'compact'"
+            >
+              Collapse
+            </button>
+            <button
+              class="text-xs text-text-muted hover:text-accent-600 font-medium transition-colors"
+              @click.stop="emit('request-graph', block.id)"
+            >
+              Connections
+            </button>
+          </div>
+          <!-- Follow-up button (Phase 2.1) -->
           <button
-            class="text-xs text-brand-600 hover:text-brand-800 font-semibold transition-colors"
-            @click.stop="emit('request-edit', block.id)"
+            class="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-accent-600 bg-accent-50 hover:bg-accent-100 rounded-lg transition-colors"
+            :class="screenSize === 'mobile' ? 'min-w-[44px] min-h-[44px] justify-center' : ''"
+            @click.stop="emit('request-followup', block)"
+            title="Add follow-up"
           >
-            Edit
-          </button>
-          <button
-            class="text-xs text-text-muted hover:text-text-primary font-medium transition-colors"
-            @click.stop="viewMode = 'compact'"
-          >
-            Collapse
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span v-if="screenSize !== 'mobile'">Follow-up</span>
           </button>
         </div>
       </template>

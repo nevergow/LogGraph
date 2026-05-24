@@ -108,6 +108,19 @@ func (h *NodeHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Bug 1 fix: prevent renaming to an existing node name
+	if old.Name != input.Name {
+		existing, err := h.repo.GetByNameAndType(r.Context(), input.Name, old.Type)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if existing != nil {
+			writeErr(w, http.StatusConflict, "a node with this name already exists")
+			return
+		}
+	}
+
 	node, err := h.repo.Update(r.Context(), id, input.Name)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())

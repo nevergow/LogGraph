@@ -8,8 +8,14 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
 import type { Node } from '../types'
 
+const props = defineProps<{
+  prefillProject?: string
+  prefillContent?: string
+}>()
+
 const emit = defineEmits<{
-  send: [content: string, metadata?: Record<string, any>]
+  send: [content: string, metadata?: Record<string, any>, parentBlockId?: string]
+  'clear-prefill': []
 }>()
 
 const text = ref('')
@@ -18,7 +24,6 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const { projects, fetchProjects } = useNodes()
 
 // ── Priority quadrant ──
-// q1: 紧急重要, q2: 紧急不重要, q3: 不紧急重要, q4: 不紧急不重要
 const selectedPriority = ref<string>('q3')
 const selectedProject = ref<string>('')
 
@@ -33,7 +38,7 @@ const quadrantLabels: Record<string, string> = {
 const isExpanded = ref(false)
 const isFullscreen = ref(false)
 
-// ── TipTap editor (expanded mode only) ──
+// ── TipTap editor ──
 const editor = useEditor({
   extensions: [
     StarterKit,
@@ -59,7 +64,7 @@ const editor = useEditor({
   },
   onUpdate: () => {
     if (editor.value) {
-      // @ts-ignore - markdown storage from tiptap-markdown
+      // @ts-ignore
       text.value = editor.value.storage.markdown?.getMarkdown?.() || ''
     }
   },
@@ -110,12 +115,12 @@ function tipTapInsertTag(ch: string) {
 // ── Autocomplete state ──
 const showSuggest = ref(false)
 const suggestType = ref<'project' | 'person' | 'reference'>('project')
-const suggestItems = ref<Node[]>([])
+const suggestItems = ref<any[]>([])
 const suggestIndex = ref(0)
 const triggerPos = ref(0)
 const triggerChar = ref('')
 
-// ── Toolbar state (compact mode only) ──
+// ── Toolbar state ──
 const cursorStart = ref(0)
 const cursorEnd = ref(0)
 
@@ -126,7 +131,7 @@ function trackCursor() {
   cursorEnd.value = ta.selectionEnd
 }
 
-// ── Trigger detection on every keystroke ──
+// ── Trigger detection: & (project), @ (person), ^ (reference) ──
 
 watch(text, async (val) => {
   if (isExpanded.value) return
@@ -135,11 +140,11 @@ watch(text, async (val) => {
   const pos = ta.selectionStart
   const before = val.slice(0, pos)
 
-  const hashIdx = before.lastIndexOf('#')
+  const ampIdx = before.lastIndexOf('&')
   const atIdx = before.lastIndexOf('@')
   const caretIdx = before.lastIndexOf('^')
 
-  const lastIdx = Math.max(hashIdx, atIdx, caretIdx)
+  const lastIdx = Math.max(ampIdx, atIdx, caretIdx)
   if (lastIdx === -1) {
     showSuggest.value = false
     return
@@ -151,9 +156,9 @@ watch(text, async (val) => {
     return
   }
 
-  if (lastIdx === hashIdx) {
+  if (lastIdx === ampIdx) {
     suggestType.value = 'project'
-    triggerChar.value = '#'
+    triggerChar.value = '&'
   } else if (lastIdx === atIdx) {
     suggestType.value = 'person'
     triggerChar.value = '@'
@@ -168,12 +173,17 @@ watch(text, async (val) => {
 
   if (suggestType.value === 'reference') {
     try {
-      const res = await fetch(`/api/v1/blocks?q=${encodeURIComponent(query)}&limit=5`)
+      const params = new URLSearchParams({ q: query, limit: '5' })
+      if (selectedProject.value) {
+        // Filter references to current project
+        params.set('project', selectedProject.value)
+      }
+      const res = await fetch(`/api/v1/blocks?${params}`)
       if (res.ok) {
         const page = await res.json()
         suggestItems.value = (page.data || []).map((b: any) => ({
           id: b.id,
-          name: b.content.slice(0, 40),
+          name: (b.content || '').slice(0, 40),
           type: 'custom' as const,
           created_at: b.created_at,
         }))
@@ -182,14 +192,14 @@ watch(text, async (val) => {
     } catch { showSuggest.value = false }
   } else {
     try {
-      const type = suggestType.value === 'project' ? undefined : suggestType.value
+      const type = suggestType.value === 'person' ? 'person' : undefined
       suggestItems.value = await nodesApi.suggest(query, type)
       showSuggest.value = suggestItems.value.length > 0
     } catch { showSuggest.value = false }
   }
 })
 
-// ── Keyboard navigation (compact mode) ──
+// ── Keyboard navigation ──
 
 function onKeydown(e: KeyboardEvent) {
   if (isExpanded.value) return
@@ -218,7 +228,7 @@ function onKeydown(e: KeyboardEvent) {
 
 // ── Apply suggestion ──
 
-function applySuggestion(item: Node) {
+function applySuggestion(item: any) {
   const before = text.value.slice(0, triggerPos.value)
   const ta = textareaRef.value!
   const pos = ta.selectionStart
@@ -237,10 +247,24 @@ function applySuggestion(item: Node) {
   })
 }
 
+// ── Prefill handling (Phase 2.1 follow-up) ──
+watch(() => props.prefillProject, (val) => {
+  if (val) selectedProject.value = val
+})
+watch(() => props.prefillContent, (val) => {
+  if (val) {
+    text.value = val
+    nextTick(() => {
+      textareaRef.value?.focus()
+      const len = val.length
+      textareaRef.value?.setSelectionRange(len, len)
+    })
+  }
+})
+
 // ── Submit ──
 
 function submit() {
-  // In expanded mode, get latest markdown from TipTap
   if (isExpanded.value && editor.value) {
     // @ts-ignore
     text.value = editor.value.storage.markdown?.getMarkdown?.() || ''
@@ -250,7 +274,7 @@ function submit() {
   if (!trimmed) return
 
   if (selectedProject.value) {
-    trimmed = `#${selectedProject.value} ` + trimmed
+    trimmed = `&${selectedProject.value} ` + trimmed
   }
 
   const metadata: Record<string, any> = {}
@@ -259,7 +283,14 @@ function submit() {
     metadata.priority = 'high'
   }
 
-  emit('send', trimmed, metadata)
+  // Extract parent block ID from prefill content (^uuid at start)
+  let parentBlockId: string | undefined
+  if (props.prefillContent) {
+    const refMatch = props.prefillContent.match(/^\^([0-9a-fA-F-]{36})/)
+    if (refMatch) parentBlockId = refMatch[1]
+  }
+
+  emit('send', trimmed, metadata, parentBlockId)
   text.value = ''
   selectedPriority.value = 'q3'
   selectedProject.value = ''
@@ -267,9 +298,10 @@ function submit() {
   isExpanded.value = false
   isFullscreen.value = false
   if (editor.value) editor.value.commands.clearContent()
+  emit('clear-prefill')
 }
 
-// ── File paste (compact mode only) ──
+// ── File paste ──
 
 function onPaste(e: ClipboardEvent) {
   if (isExpanded.value) return
@@ -282,7 +314,7 @@ function onPaste(e: ClipboardEvent) {
   text.value = text.value.slice(0, pos) + placeholder + text.value.slice(ta.selectionEnd)
 }
 
-// Auto-resize (compact mode only)
+// Auto-resize
 function autoResize() {
   if (isExpanded.value) return
   const ta = textareaRef.value
@@ -296,6 +328,16 @@ watch(text, autoResize)
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
   fetchProjects()
+  // Apply prefill props on mount
+  if (props.prefillProject) selectedProject.value = props.prefillProject
+  if (props.prefillContent) {
+    text.value = props.prefillContent
+    nextTick(() => {
+      textareaRef.value?.focus()
+      const len = props.prefillContent!.length
+      textareaRef.value?.setSelectionRange(len, len)
+    })
+  }
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
@@ -303,31 +345,34 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-white/80 backdrop-blur-md px-4 py-3 shrink-0 relative safe-area-bottom border-t border-border-subtle">
+  <div class="bg-white/92 backdrop-blur-sm px-4 py-3 shrink-0 relative safe-area-bottom border-t border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
 
     <!-- Suggest popover (compact mode only) -->
     <div
       v-if="showSuggest && !isExpanded"
-      class="absolute bottom-full left-4 mb-2 w-72 max-h-48 overflow-y-auto glass-strong rounded-xl shadow-glass border border-white/50 z-50"
+      class="absolute bottom-full left-4 mb-2 w-72 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-elevated z-50"
     >
       <div
         v-for="(item, i) in suggestItems"
         :key="item.id"
-        class="px-4 py-3 cursor-pointer hover:bg-brand-50 flex items-center gap-3 transition-colors"
-        :class="{ 'bg-brand-50': i === suggestIndex }"
+        class="px-4 py-3 cursor-pointer hover:bg-accent-50 flex items-center gap-3 transition-colors"
+        :class="{ 'bg-accent-50': i === suggestIndex }"
         @click="applySuggestion(item)"
         @mouseenter="suggestIndex = i"
       >
-        <span class="text-xs text-brand-500 w-5 shrink-0 font-mono font-semibold">{{ triggerChar }}</span>
+        <span class="text-xs text-accent-500 w-5 shrink-0 font-mono font-semibold">{{ triggerChar }}</span>
         <span class="truncate text-text-primary text-sm">{{ item.name }}</span>
         <span v-if="item.type !== 'custom'" class="text-[10px] text-text-muted ml-auto uppercase tracking-wide">{{ item.type }}</span>
+      </div>
+      <div v-if="suggestItems.length === 0" class="px-4 py-3 text-xs text-text-muted italic">
+        No matches
       </div>
     </div>
 
     <!-- ── Compact mode ── -->
     <div v-if="!isExpanded" class="flex items-center gap-3">
       <button
-        class="shrink-0 text-text-muted hover:text-brand-600 hover:bg-brand-50 p-2 rounded-xl transition-colors"
+        class="shrink-0 text-text-muted hover:text-accent-600 hover:bg-accent-50 p-2 rounded-lg transition-colors"
         @click="expand"
         title="Expand editor"
       >
@@ -340,8 +385,8 @@ onUnmounted(() => {
         ref="textareaRef"
         v-model="text"
         rows="1"
-        placeholder="#project @person ^reference — Enter to send"
-        class="flex-1 resize-none outline-none text-sm py-3 px-5 bg-gradient-to-r from-surface-100 to-surface-50 rounded-2xl border-0 focus:bg-white focus:ring-2 focus:ring-brand-200/50 transition-all placeholder:text-text-muted"
+        placeholder="&project @person ^reference — Enter to send"
+        class="flex-1 resize-none outline-none text-sm py-3 px-5 bg-gradient-to-r from-surface-100 to-surface-50 rounded-2xl border-0 focus:bg-white focus:ring-2 focus:ring-accent-200/50 transition-all placeholder:text-text-muted"
         @click="trackCursor"
         @keyup="trackCursor"
         @select="trackCursor"
@@ -349,12 +394,12 @@ onUnmounted(() => {
       />
 
       <!-- Priority pills -->
-      <div class="shrink-0 flex items-center gap-1 bg-surface-100 rounded-xl p-1">
+      <div class="shrink-0 flex items-center gap-1 bg-surface-100 rounded-lg p-1">
         <button
           v-for="(_, key) in quadrantLabels"
           :key="key"
-          class="px-2.5 py-1 text-[10px] font-medium rounded-lg transition-all"
-          :class="selectedPriority === key ? 'bg-brand-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
+          class="px-2.5 py-1 text-[10px] font-medium rounded-md transition-all"
+          :class="selectedPriority === key ? 'bg-accent-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
           @click="selectedPriority = key as string"
         >
           {{ (key as string).toUpperCase() }}
@@ -362,13 +407,13 @@ onUnmounted(() => {
       </div>
 
       <!-- Project dropdown -->
-      <select v-model="selectedProject" class="shrink-0 text-[11px] border-0 bg-surface-100 rounded-xl px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-brand-200/50 transition-colors max-w-[100px]">
+      <select v-model="selectedProject" class="shrink-0 text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[100px]">
         <option value="">No project</option>
         <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>
       </select>
 
       <button
-        class="shrink-0 px-5 py-2.5 bg-gradient-to-r from-brand-500 to-violet-500 text-white text-sm rounded-xl hover:shadow-lg hover:shadow-brand-500/25 transition-all disabled:opacity-30 font-semibold"
+        class="shrink-0 px-5 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold"
         :disabled="!text.trim()"
         @click="submit"
       >
@@ -376,7 +421,7 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- ── Expanded mode (Teleported) ── -->
+    <!-- ── Expanded mode ── -->
     <Teleport to="body">
       <div
         v-if="isExpanded"
@@ -386,7 +431,7 @@ onUnmounted(() => {
       />
       <div
         v-if="isExpanded"
-        class="fixed z-50 glass-strong shadow-glass border border-white/50 flex flex-col overflow-hidden"
+        class="fixed z-50 bg-white border border-slate-200 shadow-elevated flex flex-col overflow-hidden"
         :class="isFullscreen
           ? 'inset-4 rounded-2xl'
           : 'bottom-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl sm:w-full rounded-2xl'"
@@ -400,18 +445,18 @@ onUnmounted(() => {
 
           <span class="w-px h-5 bg-border-light mx-2" />
 
-          <button class="toolbar-btn font-semibold text-[15px]" :class="{ 'text-brand-600 bg-brand-50': editor?.isActive('heading', { level: 2 }) }" @click="tipTapHeading" title="Heading">H</button>
-          <button class="toolbar-btn" :class="{ 'text-brand-600 bg-brand-50': editor?.isActive('bulletList') }" @click="tipTapBulletList" title="Bullet list">
+          <button class="toolbar-btn font-semibold text-[15px]" :class="{ 'text-accent-600 bg-accent-50': editor?.isActive('heading', { level: 2 }) }" @click="tipTapHeading" title="Heading">H</button>
+          <button class="toolbar-btn" :class="{ 'text-accent-600 bg-accent-50': editor?.isActive('bulletList') }" @click="tipTapBulletList" title="Bullet list">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <button class="toolbar-btn" :class="{ 'text-brand-600 bg-brand-50': editor?.isActive('code') }" @click="tipTapCode" title="Inline code">
+          <button class="toolbar-btn" :class="{ 'text-accent-600 bg-accent-50': editor?.isActive('code') }" @click="tipTapCode" title="Inline code">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
             </svg>
           </button>
-          <button class="toolbar-btn" :class="{ 'text-brand-600 bg-brand-50': editor?.isActive('blockquote') }" @click="tipTapBlockquote" title="Blockquote">
+          <button class="toolbar-btn" :class="{ 'text-accent-600 bg-accent-50': editor?.isActive('blockquote') }" @click="tipTapBlockquote" title="Blockquote">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
@@ -419,13 +464,12 @@ onUnmounted(() => {
 
           <span class="w-px h-5 bg-border-light mx-2" />
 
-          <button class="toolbar-btn text-brand-600 font-semibold text-xs" @click="tipTapInsertTag('#')" title="Insert project tag">#</button>
-          <button class="toolbar-btn text-brand-600 font-semibold text-xs" @click="tipTapInsertTag('@')" title="Insert person mention">@</button>
-          <button class="toolbar-btn text-brand-600 font-semibold text-xs" @click="tipTapInsertTag('^')" title="Insert block reference">^</button>
+          <button class="toolbar-btn text-accent-600 font-semibold text-xs" @click="tipTapInsertTag('&')" title="Insert project tag">&amp;</button>
+          <button class="toolbar-btn text-accent-600 font-semibold text-xs" @click="tipTapInsertTag('@')" title="Insert person mention">@</button>
+          <button class="toolbar-btn text-accent-600 font-semibold text-xs" @click="tipTapInsertTag('^')" title="Insert block reference">^</button>
 
           <div class="flex-1" />
 
-          <!-- Fullscreen toggle -->
           <button class="toolbar-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'">
             <svg v-if="isFullscreen" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -435,7 +479,6 @@ onUnmounted(() => {
             </svg>
           </button>
 
-          <!-- Collapse -->
           <button class="toolbar-btn text-text-muted" @click="collapse" title="Collapse">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -443,32 +486,29 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- TipTap WYSIWYG Editor -->
         <EditorContent :editor="editor" class="flex flex-1 overflow-hidden" />
 
         <!-- Footer -->
         <div class="px-4 py-3 border-t border-border-subtle flex items-center justify-between shrink-0 gap-3">
           <div class="flex items-center gap-2">
-            <!-- Priority pills -->
-            <div class="flex items-center gap-1 bg-surface-100 rounded-xl p-1">
+            <div class="flex items-center gap-1 bg-surface-100 rounded-lg p-1">
               <button
                 v-for="(_, key) in quadrantLabels"
                 :key="key"
-                class="px-3 py-1 text-[10px] font-semibold rounded-lg transition-all"
-                :class="selectedPriority === key ? 'bg-brand-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
+                class="px-3 py-1 text-[10px] font-semibold rounded-md transition-all"
+                :class="selectedPriority === key ? 'bg-accent-500 text-white shadow-sm' : 'text-text-muted hover:text-text-primary'"
                 @click="selectedPriority = key as string"
               >
                 {{ (key as string).toUpperCase() }}
               </button>
             </div>
-            <!-- Project selector -->
-            <select v-model="selectedProject" class="text-[11px] border-0 bg-surface-100 rounded-xl px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-brand-200/50 transition-colors max-w-[120px]">
+            <select v-model="selectedProject" class="text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[120px]">
               <option value="">No project</option>
               <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>
             </select>
           </div>
           <button
-            class="px-6 py-2.5 bg-gradient-to-r from-brand-500 to-violet-500 text-white text-sm rounded-xl hover:shadow-lg hover:shadow-brand-500/25 transition-all disabled:opacity-30 font-semibold"
+            class="px-6 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold"
             :disabled="!text.trim()"
             @click="collapse(); submit()"
           >
