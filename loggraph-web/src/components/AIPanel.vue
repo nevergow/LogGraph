@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { aiApi, type ReportResult } from '../api/ai'
 import { renderMarkdown } from '../composables/useMarkdown'
+import { useNodes } from '../composables/useNodes'
 
 const props = defineProps<{
   currentProject?: string
@@ -11,10 +12,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: [] }>()
 
+const { projects, fetchProjects } = useNodes()
+
 const tab = ref<'report' | 'settings'>('report')
 
 // Report state
-const project = ref('')
+const selectedProjects = ref<string[]>([])
 const since = ref('')
 const until = ref('')
 const loading = ref(false)
@@ -28,10 +31,20 @@ const settingsModel = ref('')
 const settingsLoading = ref(false)
 const settingsMsg = ref('')
 
+function toggleProject(name: string) {
+  const idx = selectedProjects.value.indexOf(name)
+  if (idx >= 0) {
+    selectedProjects.value.splice(idx, 1)
+  } else {
+    selectedProjects.value.push(name)
+  }
+}
+
 onMounted(() => {
-  if (props.currentProject) project.value = props.currentProject
+  if (props.currentProject) selectedProjects.value = [props.currentProject]
   if (props.currentSince) since.value = props.currentSince.split('T')[0]
   if (props.currentUntil) until.value = props.currentUntil.split('T')[0]
+  fetchProjects()
   fetchSettings()
 })
 
@@ -45,13 +58,13 @@ async function fetchSettings() {
 }
 
 async function generate() {
-  if (!project.value.trim()) return
+  if (selectedProjects.value.length === 0) return
   loading.value = true
   error.value = ''
   result.value = null
   try {
     result.value = await aiApi.generateReport(
-      project.value.trim(),
+      selectedProjects.value[0],
       since.value || undefined,
       until.value || undefined,
     )
@@ -105,33 +118,36 @@ async function saveSettings() {
       <!-- Report tab -->
       <div v-if="tab === 'report'" class="p-4 space-y-3">
         <div>
-          <label class="text-xs font-medium text-gray-500">Project</label>
-          <input
-            v-model="project"
-            placeholder="#项目名"
-            class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-1 outline-none focus:border-brand-400"
-            @keydown.enter="generate"
-          />
+          <label class="text-xs font-medium text-gray-500">Projects</label>
+          <div class="mt-1 flex flex-wrap gap-2">
+            <button
+              v-for="p in projects"
+              :key="p.name"
+              class="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors border"
+              :class="selectedProjects.includes(p.name)
+                ? 'bg-accent-600 text-white border-accent-600'
+                : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
+              @click="toggleProject(p.name)"
+            >
+              &amp;{{ p.name }}
+            </button>
+          </div>
+          <p v-if="projects.length === 0" class="text-xs text-text-muted mt-1">No projects found</p>
         </div>
         <div class="flex gap-2">
           <div class="flex-1">
-            <label class="text-xs text-gray-400">Since</label>
-            <input v-model="since" type="date" class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-0.5 outline-none" />
+            <label class="text-xs text-text-muted">Since</label>
+            <input v-model="since" type="date" class="w-full text-sm border border-slate-200 rounded px-2 py-1.5 mt-0.5 outline-none focus:border-accent-400" />
           </div>
           <div class="flex-1">
-            <label class="text-xs text-gray-400">Until</label>
-            <input v-model="until" type="date" class="w-full text-sm border border-gray-200 rounded px-2 py-1.5 mt-0.5 outline-none" />
+            <label class="text-xs text-text-muted">Until</label>
+            <input v-model="until" type="date" class="w-full text-sm border border-slate-200 rounded px-2 py-1.5 mt-0.5 outline-none focus:border-accent-400" />
           </div>
-        </div>
-
-        <div class="text-xs text-gray-400" v-if="currentProject && !project">
-          Current filter: <span class="text-brand-600">#{{ currentProject }}</span>
-          <button class="ml-2 text-brand-600 underline" @click="project = currentProject || ''">Use</button>
         </div>
 
         <button
-          class="w-full py-2 bg-brand-500 text-white text-sm rounded-sm hover:bg-brand-600 disabled:opacity-40 transition-colors"
-          :disabled="loading || !project.trim()"
+          class="w-full py-2 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 disabled:opacity-40 transition-colors font-semibold"
+          :disabled="loading || selectedProjects.length === 0"
           @click="generate"
         >
           {{ loading ? 'Generating...' : 'Generate Report' }}

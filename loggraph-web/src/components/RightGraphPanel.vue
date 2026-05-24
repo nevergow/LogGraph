@@ -141,7 +141,7 @@ const vfNodes = computed<VFNode[]>(() => {
       nodes.push({
         id: n.id, type: 'default',
         position: { x: 250 + 160 * Math.cos(angle), y: 150 + 160 * Math.sin(angle) },
-        data: { label: (n.type === 'person' ? '@' : '#') + n.name, nodeType: n.type },
+        data: { label: (n.type === 'person' ? '@' : '&') + n.name, nodeType: n.type },
         style: {
           background: '#fff', border: `2px solid ${nodeTypeColors[n.type] || '#6b7280'}`,
           borderRadius: '20px', padding: '6px 12px', fontSize: '11px', fontWeight: 500,
@@ -155,7 +155,7 @@ const vfNodes = computed<VFNode[]>(() => {
       id: props.projectNodeId || 'center',
       type: 'default',
       position: { x: 250, y: 150 },
-      data: { label: (centerNode?.type === 'person' ? '@' : '#') + (centerNode?.name || props.projectName || '') },
+      data: { label: (centerNode?.type === 'person' ? '@' : '&') + (centerNode?.name || props.projectName || '') },
       style: {
         background: '#fff', border: '3px solid #3b82f6',
         borderRadius: '24px', padding: '10px 18px', fontSize: '13px', fontWeight: 600,
@@ -166,7 +166,7 @@ const vfNodes = computed<VFNode[]>(() => {
       nodes.push({
         id: n.id, type: 'default',
         position: { x: 250 + 160 * Math.cos(angle), y: 150 + 160 * Math.sin(angle) },
-        data: { label: (n.type === 'person' ? '@' : '#') + n.name, nodeType: n.type },
+        data: { label: (n.type === 'person' ? '@' : '&') + n.name, nodeType: n.type },
         style: {
           background: '#fff', border: `2px solid ${nodeTypeColors[n.type] || '#6b7280'}`,
           borderRadius: '20px', padding: '6px 12px', fontSize: '11px', fontWeight: 500,
@@ -288,7 +288,7 @@ const vfEdges = computed<VFEdge[]>(() => {
               'border-orange-200 bg-orange-50 text-orange-700': node.type === 'standard',
             }"
           >
-            {{ node.type === 'person' ? '@' : '#' }}{{ node.name }}
+            {{ node.type === 'person' ? '@' : '&' }}{{ node.name }}
           </span>
         </div>
       </div>

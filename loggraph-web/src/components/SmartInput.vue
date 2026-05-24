@@ -9,6 +9,7 @@ import { Markdown } from 'tiptap-markdown'
 import type { Node } from '../types'
 
 const props = defineProps<{
+  screenSize?: 'mobile' | 'tablet' | 'desktop'
   prefillProject?: string
   prefillContent?: string
 }>()
@@ -391,7 +392,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-white/92 backdrop-blur-sm px-4 py-3 shrink-0 relative safe-area-bottom border-t border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+  <div class="bg-white/92 backdrop-blur-sm px-4 py-3 shrink-0 relative safe-area-bottom border-t border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]" :class="{ 'pb-6': screenSize === 'mobile' }">
 
     <!-- Suggest popover (compact mode only) -->
     <div
@@ -418,7 +419,8 @@ onUnmounted(() => {
     <!-- ── Compact mode ── -->
     <div v-if="!isExpanded" class="flex items-center gap-3">
       <button
-        class="shrink-0 text-text-muted hover:text-accent-600 hover:bg-accent-50 p-2 rounded-lg transition-colors"
+        class="shrink-0 text-text-muted hover:text-accent-600 hover:bg-accent-50 p-2 rounded-lg transition-colors flex items-center justify-center"
+        :class="{ 'min-w-[44px] min-h-[44px]': screenSize === 'mobile' }"
         @click="expand"
         title="Expand editor"
       >
@@ -433,6 +435,7 @@ onUnmounted(() => {
         rows="1"
         placeholder="&project @person ^reference — Enter to send"
         class="flex-1 resize-none outline-none text-sm py-3 px-5 bg-gradient-to-r from-surface-100 to-surface-50 rounded-2xl border-0 focus:bg-white focus:ring-2 focus:ring-accent-200/50 transition-all placeholder:text-text-muted"
+        :class="{ 'min-h-[44px]': screenSize === 'mobile' }"
         @click="trackCursor"
         @keyup="trackCursor"
         @select="trackCursor"
@@ -440,13 +443,14 @@ onUnmounted(() => {
       />
 
       <!-- Project dropdown -->
-      <select v-model="selectedProject" class="shrink-0 text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[100px]">
+      <select v-model="selectedProject" class="shrink-0 text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[100px]" :class="{ 'min-h-[44px]': screenSize === 'mobile' }">
         <option value="">No project</option>
         <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>
       </select>
 
       <button
         class="shrink-0 px-5 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold"
+        :class="{ 'min-h-[44px]': screenSize === 'mobile' }"
         :disabled="!text.trim()"
         @click="submit"
       >
@@ -461,7 +465,7 @@ onUnmounted(() => {
         class="fixed z-50 bg-white border border-slate-200 shadow-elevated flex flex-col overflow-hidden"
         :class="isFullscreen
           ? 'inset-4 rounded-2xl'
-          : 'bottom-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl sm:w-full rounded-2xl'"
+          : 'bottom-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl sm:w-full sm:top-24 rounded-2xl'"
         :style="isFullscreen ? {} : { maxHeight: '80vh', paddingBottom: 'env(safe-area-inset-bottom)' }"
       >
         <!-- Toolbar header -->
@@ -535,13 +539,14 @@ onUnmounted(() => {
         <!-- Footer -->
         <div class="px-4 py-3 border-t border-border-subtle flex items-center justify-between shrink-0 gap-3">
           <div class="flex items-center gap-2">
-            <select v-model="selectedProject" class="text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[120px]">
+            <select v-model="selectedProject" class="text-[11px] border-0 bg-surface-100 rounded-lg px-3 py-2 text-text-secondary outline-none focus:ring-2 focus:ring-accent-200/50 transition-colors max-w-[120px]" :class="{ 'min-h-[44px]': screenSize === 'mobile' }">
               <option value="">No project</option>
               <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>
             </select>
           </div>
           <button
             class="px-6 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold"
+            :class="{ 'min-h-[44px]': screenSize === 'mobile' }"
             :disabled="!text.trim()"
             @click="collapse(); submit()"
           >

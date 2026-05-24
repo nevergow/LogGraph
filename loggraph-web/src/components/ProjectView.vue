@@ -411,6 +411,17 @@ function onInlineKeydown(e: KeyboardEvent) {
                   class="space-y-2"
                   :class="screenSize === 'mobile' ? 'ml-3' : 'ml-6'"
                 >
+                  <!-- Mobile collapse hint -->
+                  <button
+                    v-if="screenSize === 'mobile'"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-text-muted hover:text-text-primary hover:bg-surface-100 rounded-full transition-colors"
+                    @click.stop="toggleChildren(block.id)"
+                  >
+                    <svg class="w-3.5 h-3.5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Collapse
+                  </button>
                   <div
                     v-for="child in childMap.get(block.id)"
                     :key="child.id"

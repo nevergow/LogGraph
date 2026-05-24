@@ -11,7 +11,6 @@ import CommandPalette from './components/CommandPalette.vue'
 import CalendarHeatmap from './components/CalendarHeatmap.vue'
 import CardEditor from './components/CardEditor.vue'
 import RightGraphPanel from './components/RightGraphPanel.vue'
-import MobileDrawer from './components/MobileDrawer.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import { useBlocks } from './composables/useBlocks'
 import { useNodes } from './composables/useNodes'
@@ -224,13 +223,6 @@ function handleSelectBlock(id: string) {
   })
 }
 
-function handleMobileToggleView() {
-  currentView.value = currentView.value === 'project' ? 'timeline' : 'project'
-}
-
-function handleMobileOpenSearch() {
-  document.dispatchEvent(new KeyboardEvent('keydown', { metaKey: true, key: 'k', bubbles: true }))
-}
 </script>
 
 <template>
@@ -628,20 +620,11 @@ function handleMobileOpenSearch() {
     </div>
 
     <SmartInput
+      :screen-size="screenSize"
       :prefill-project="inputPrefillProject"
       :prefill-content="inputPrefillContent"
       @send="handleCreate"
       @clear-prefill="inputPrefillProject = undefined; inputPrefillContent = undefined"
-    />
-
-    <!-- Mobile quick-actions drawer -->
-    <MobileDrawer
-      v-if="screenSize === 'mobile'"
-      :current-view="currentView"
-      :show-filter="showMobileFilter"
-      @toggle-view="handleMobileToggleView"
-      @toggle-filter="showMobileFilter = !showMobileFilter"
-      @open-search="handleMobileOpenSearch"
     />
 
     <!-- Mobile/Tablet overlays -->

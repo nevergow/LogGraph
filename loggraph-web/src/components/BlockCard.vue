@@ -23,8 +23,16 @@ const emit = defineEmits<{
 
 const viewMode = ref<'compact' | 'expanded'>('compact')
 const showMoreMenu = ref(false)
+const moreMenuButtonEl = ref<HTMLElement | null>(null)
 
-function toggleMoreMenu() {
+const moreMenuPosition = computed(() => {
+  if (!moreMenuButtonEl.value) return { right: '16px', top: '60px' }
+  const rect = moreMenuButtonEl.value.getBoundingClientRect()
+  return { right: `${window.innerWidth - rect.right}px`, top: `${rect.bottom + 4}px` }
+})
+
+function toggleMoreMenu(el?: HTMLElement) {
+  moreMenuButtonEl.value = el || moreMenuButtonEl.value
   showMoreMenu.value = !showMoreMenu.value
 }
 function closeMoreMenu() {
@@ -49,6 +57,29 @@ function renderContent(text: string): string {
 const hasRelations = computed(() =>
   props.block.referenced_by && props.block.referenced_by.length > 0
 )
+
+// Tag extraction: parse &Name, @Name, ^short-uuid from content for compact mode display
+const compactTags = computed(() => {
+  const tags: { type: string; value: string }[] = []
+  const content = props.block.content
+  // Find &Project tags (avoid &amp; entities)
+  const projectRe = /(?:^|\s)&([^\s&][^\s]*?)(?=\s|$)/g
+  let m: RegExpExecArray | null
+  while ((m = projectRe.exec(content)) !== null) {
+    tags.push({ type: 'project', value: m[1] })
+  }
+  // Find @Person tags
+  const personRe = /(?:^|\s)@([^\s@][^\s]*?)(?=\s|$)/g
+  while ((m = personRe.exec(content)) !== null) {
+    tags.push({ type: 'person', value: m[1] })
+  }
+  // Find ^uuid tags (short display)
+  const refRe = /\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi
+  while ((m = refRe.exec(content)) !== null) {
+    tags.push({ type: 'reference', value: m[1].slice(0, 8) })
+  }
+  return tags.slice(0, 5) // max 5 tags in compact view
+})
 
 // Inline style for status colors — bypasses .card-surface CSS cascade
 const cardStyle = computed(() => {
@@ -141,7 +172,7 @@ function onDragStart(e: DragEvent) {
 
 <template>
   <div
-    class="group relative overflow-hidden rounded-xl"
+    class="group relative rounded-xl"
     :class="{ 'cursor-grab active:cursor-grabbing': draggable }"
     :draggable="draggable"
     @dragstart="onDragStart"
@@ -189,9 +220,10 @@ function onDragStart(e: DragEvent) {
           @click.stop
         >
           <button
+            ref="moreMenuButtonEl"
             class="p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-100 transition-colors"
             title="More actions"
-            @click="toggleMoreMenu"
+            @click="toggleMoreMenu()"
           >
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="5" r="1.5" />
@@ -199,49 +231,91 @@ function onDragStart(e: DragEvent) {
               <circle cx="12" cy="19" r="1.5" />
             </svg>
           </button>
-          <div
-            v-if="showMoreMenu"
-            class="absolute right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-elevated z-50 py-2 min-w-[140px]"
-            @click.stop
-          >
-            <button
-              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-accent-50 hover:text-accent-700 transition-colors flex items-center gap-3"
-              @click="emit('request-edit', block.id); closeMoreMenu()"
+          <Teleport to="body">
+            <div
+              v-if="showMoreMenu"
+              class="fixed inset-0 z-60"
+              @click="closeMoreMenu"
+            />
+            <div
+              v-if="showMoreMenu"
+              class="fixed z-70 mt-2 bg-white border border-slate-200 rounded-xl shadow-elevated py-2 min-w-[140px]"
+              :style="moreMenuPosition"
+              @click.stop
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit
-            </button>
-            <button
-              class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-success-light hover:text-success transition-colors flex items-center gap-3"
-              @click="emit('toggle-status', block.id, block.status); closeMoreMenu()"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
-              {{ block.status === 'completed' ? 'Reopen' : 'Complete' }}
-            </button>
-            <div class="border-t border-border-subtle my-2" />
-            <button
-              class="w-full text-left px-4 py-2.5 text-sm text-danger hover:bg-danger-light transition-colors flex items-center gap-3"
-              @click="emit('delete', block.id); closeMoreMenu()"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete
-            </button>
-          </div>
+              <button
+                class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-accent-50 hover:text-accent-700 transition-colors flex items-center gap-3"
+                @click="emit('request-edit', block.id); closeMoreMenu()"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
+              </button>
+              <button
+                class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-success-light hover:text-success transition-colors flex items-center gap-3"
+                @click="emit('toggle-status', block.id, block.status); closeMoreMenu()"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                {{ block.status === 'completed' ? 'Reopen' : 'Complete' }}
+              </button>
+              <div class="border-t border-border-subtle my-2" />
+              <button
+                class="w-full text-left px-4 py-2.5 text-sm text-danger hover:bg-danger-light transition-colors flex items-center gap-3"
+                @click="emit('delete', block.id); closeMoreMenu()"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            </div>
+          </Teleport>
         </div>
       </div>
 
       <!-- ── Compact mode ── -->
-      <div v-if="viewMode === 'compact'" class="flex items-center gap-3">
-        <span class="text-sm text-text-primary truncate flex-1 font-medium" :class="{ 'text-text-muted line-through': block.status === 'completed' }">{{ extractTitle(block.content) }}</span>
-        <svg class="w-4 h-4 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
+      <div v-if="viewMode === 'compact'">
+        <div class="flex items-center gap-2">
+          <button
+            class="shrink-0 w-2.5 h-2.5 rounded-full border-2 border-white transition-colors hover:scale-125"
+            :class="{
+              'bg-accent-500': block.status === 'active',
+              'bg-slate-400': block.status === 'completed',
+              'bg-danger': block.status === 'blocked',
+            }"
+            :title="`Status: ${block.status} — click to cycle`"
+            @click.stop="emit('toggle-status', block.id, block.status)"
+          />
+          <span class="text-sm text-text-primary truncate flex-1 font-medium" :class="{ 'text-text-muted line-through': block.status === 'completed' }">{{ extractTitle(block.content) }}</span>
+          <button
+            class="shrink-0 p-1 rounded-lg hover:bg-surface-100 text-text-muted hover:text-text-primary transition-colors"
+            title="Expand"
+            @click.stop="viewMode = 'expanded'"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+        <!-- Tag capsules below title (Bug 8) -->
+        <div v-if="compactTags.length > 0" class="flex flex-wrap gap-1.5 mt-1.5">
+          <span
+            v-for="tag in compactTags"
+            :key="tag.type + tag.value"
+            class="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full leading-none"
+            :class="{
+              'bg-accent-50 text-accent-600': tag.type === 'project',
+              'bg-emerald-50 text-emerald-600': tag.type === 'person',
+              'bg-amber-50 text-amber-600': tag.type === 'reference',
+            }"
+          >
+            <span class="mr-0.5">{{ tag.type === 'project' ? '&' : tag.type === 'person' ? '@' : '^' }}</span>
+            {{ tag.value }}
+          </span>
+        </div>
       </div>
 
       <!-- ── Expanded mode ── -->
