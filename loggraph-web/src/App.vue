@@ -34,11 +34,17 @@ function handleRequestEdit(id: string) {
   editingBlockId.value = id
 }
 
-function handleEditorSave(id: string, content: string) {
-  updateBlock(id, { content })
-  fetchProjects()
-  fetchPeople()
-  editingBlockId.value = null
+async function handleEditorSave(id: string, content: string) {
+  try {
+    await updateBlock(id, { content })
+    fetchProjects()
+    fetchPeople()
+  } catch (e: any) {
+    console.error('Failed to update block:', e)
+    alert('保存失败: ' + (e.message || '未知错误'))
+  } finally {
+    editingBlockId.value = null
+  }
 }
 
 function handleEditorClose() {
