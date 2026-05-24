@@ -43,7 +43,12 @@ const deletingNodeId = ref<string | null>(null)
 const activeNodeId = ref<string | null>(null)
 
 // Close active state when clicking outside
-function onDocumentClick() {
+function onDocumentClick(e: MouseEvent) {
+  // Don't clear if click is inside the sidebar
+  const target = e.target as HTMLElement
+  if (target && target.closest('aside')) {
+    return
+  }
   activeNodeId.value = null
 }
 onMounted(() => document.addEventListener('click', onDocumentClick))
@@ -175,18 +180,18 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
         <div class="px-4 pt-4 pb-2 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
           Projects
         </div>
-        <ul class="px-3">
+        <ul class="px-3 pb-4">
           <li
             v-for="p in filteredProjects"
             :key="p.id"
-            class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift"
+            class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift select-none"
             :class="[
               activeProject === p.name
                 ? 'bg-brand-50 text-brand-700 font-medium'
-                : 'text-text-secondary hover:bg-surface-100',
-              activeNodeId === p.id && 'bg-surface-100'
+                : 'text-text-secondary',
+              activeNodeId === p.id ? 'bg-surface-100 ring-2 ring-brand-300' : 'hover:bg-surface-100'
             ]"
-            @click="handleItemClick(p.id, p.name, 'project')"
+            @click.stop="handleItemClick(p.id, p.name, 'project')"
           >
             <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-brand-300' : 'bg-brand-500'" />
             <input
@@ -204,7 +209,9 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
             <div
               v-if="editingNodeId !== p.id"
               class="flex items-center gap-1 shrink-0 ml-auto"
-              :class="activeNodeId === p.id ? 'flex' : 'hidden group-hover:flex'"
+              :class="[
+                isDesktop ? 'hidden group-hover:flex' : (activeNodeId === p.id ? 'flex' : 'hidden')
+              ]"
               @click.stop
             >
               <button
@@ -240,9 +247,9 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
           <li
             v-for="p in filteredPeople"
             :key="p.id"
-            class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary hover:bg-surface-100"
-            :class="{ 'bg-surface-100': activeNodeId === p.id }"
-            @click="handleItemClick(p.id, p.name, 'person')"
+            class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary select-none"
+            :class="activeNodeId === p.id ? 'bg-surface-100 ring-2 ring-brand-300' : 'hover:bg-surface-100'"
+            @click.stop="handleItemClick(p.id, p.name, 'person')"
           >
             <span class="w-2 h-2 rounded-full bg-success shrink-0" />
             <input
@@ -259,7 +266,9 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
             <div
               v-if="editingNodeId !== p.id"
               class="flex items-center gap-1 shrink-0 ml-auto"
-              :class="activeNodeId === p.id ? 'flex' : 'hidden group-hover:flex'"
+              :class="[
+                isDesktop ? 'hidden group-hover:flex' : (activeNodeId === p.id ? 'flex' : 'hidden')
+              ]"
               @click.stop
             >
               <button
