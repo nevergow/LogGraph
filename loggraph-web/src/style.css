@@ -120,7 +120,9 @@ body::after {
 /* === Card Surface (Layer 1) — no glass, no blur === */
 .card-surface {
   background: var(--color-surface-card);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.06);
   box-shadow: var(--shadow-card);
 }
 
@@ -219,7 +221,7 @@ body::after {
 
 /* Done status */
 .block-done .prose {
-  opacity: 0.4;
+  opacity: 0.6;
 }
 
 /* Card list staggered animation */
@@ -295,6 +297,53 @@ body::after {
     rgba(245, 158, 11, 0.04) 0%,
     transparent 30%
   );
+}
+
+/* Timeline scroll snap */
+#timeline-scroll {
+  scroll-snap-type: y proximity;
+}
+.timeline-card {
+  scroll-snap-align: start;
+}
+
+/* Timeline dimming for focus mode (Phase 2) */
+.block-dimmed {
+  opacity: 0.3;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* === Tag capsules (&Project, @Person, ^uuid) === */
+.tag-capsule {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-size: 0.82em;
+  font-weight: 500;
+  white-space: nowrap;
+  vertical-align: baseline;
+  margin: 0 1px;
+}
+.tag-project {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+.tag-person {
+  background: #d1fae5;
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.12);
+}
+.tag-reference {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.tag-reference:hover {
+  background: #fde68a;
 }
 
 /* Empty state blinking cursor */

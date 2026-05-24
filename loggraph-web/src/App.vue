@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import type { Block } from './types'
 import LeftSidebar from './components/LeftSidebar.vue'
 import CenterTimeline from './components/CenterTimeline.vue'
@@ -10,6 +10,8 @@ import AIPanel from './components/AIPanel.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import CalendarHeatmap from './components/CalendarHeatmap.vue'
 import CardEditor from './components/CardEditor.vue'
+import RightGraphPanel from './components/RightGraphPanel.vue'
+import MobileDrawer from './components/MobileDrawer.vue'
 import ToastContainer from './components/ToastContainer.vue'
 import { useBlocks } from './composables/useBlocks'
 import { useNodes } from './composables/useNodes'
@@ -62,6 +64,41 @@ function navigateToProject(project: string) {
 // ── Responsive ──
 const screenSize = ref<'mobile' | 'tablet' | 'desktop'>('desktop')
 const showLeftOverlay = ref(false)
+const showMobileFilter = ref(false)
+const activeGraphBlockId = ref<string | null>(null)
+
+// Dimmed blocks: when a graph block is selected, all unrelated blocks get dimmed
+const dimmedBlockIds = computed(() => {
+  if (!activeGraphBlockId.value) return new Set<string>()
+  const related = new Set<string>([activeGraphBlockId.value])
+  const uuidRe = /\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi
+  for (const b of visibleBlocks.value) {
+    let match
+    while ((match = uuidRe.exec(b.content)) !== null) {
+      if (match[1] === activeGraphBlockId.value) { related.add(b.id); break }
+    }
+    uuidRe.lastIndex = 0
+  }
+  const activeBlock = visibleBlocks.value.find(b => b.id === activeGraphBlockId.value)
+  if (activeBlock) {
+    let match
+    while ((match = uuidRe.exec(activeBlock.content)) !== null) {
+      const refBlock = visibleBlocks.value.find(b => b.id === match![1])
+      if (refBlock) { related.add(refBlock.id); break }
+    }
+    uuidRe.lastIndex = 0
+  }
+  const all = new Set(visibleBlocks.value.map(b => b.id))
+  return new Set([...all].filter(id => !related.has(id)))
+})
+
+function handleRequestGraph(id: string) {
+  activeGraphBlockId.value = id
+}
+
+function closeRightPanel() {
+  activeGraphBlockId.value = null
+}
 
 function updateScreenSize() {
   const w = window.innerWidth
@@ -177,12 +214,29 @@ function handleCommand(action: string) {
     case 'new-entry': break
   }
 }
+
+function handleSelectBlock(id: string) {
+  selectedBlockId.value = id
+  currentView.value = 'timeline'
+  nextTick(() => {
+    const el = document.querySelector(`[data-block-id="${id}"]`)
+    if (el) el.scrollIntoView({ behavior: 'instant', block: 'center' })
+  })
+}
+
+function handleMobileToggleView() {
+  currentView.value = currentView.value === 'project' ? 'timeline' : 'project'
+}
+
+function handleMobileOpenSearch() {
+  document.dispatchEvent(new KeyboardEvent('keydown', { metaKey: true, key: 'k', bubbles: true }))
+}
 </script>
 
 <template>
   <div class="h-full flex flex-col">
     <!-- Header — Liquid Glass Chrome -->
-    <header class="h-14 px-5 flex items-center justify-between shrink-0 glass border-b border-white/10">
+    <header class="h-14 px-5 flex items-center justify-between shrink-0 glass border-b border-white/10 z-10">
       <div class="flex items-center gap-3">
         <!-- Logo: two dots + connecting line (Phase 6) -->
         <div class="w-8 h-8 flex items-center justify-center">
@@ -226,11 +280,12 @@ function handleCommand(action: string) {
         </button>
       </div>
       <div class="flex items-center gap-1">
-        <!-- Mobile panel toggles -->
+        <!-- Mobile: inline filter toggle (replaces sidebar overlay step) -->
         <button
           v-if="screenSize !== 'desktop'"
           class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
-          @click="showLeftOverlay = true"
+          :class="{ 'text-accent-600 bg-accent-50': showMobileFilter }"
+          @click="showMobileFilter = !showMobileFilter"
           title="Filters & Projects"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,6 +360,79 @@ function handleCommand(action: string) {
     </div>
     <div v-if="showHeatmap" class="fixed inset-0 z-30" @click="showHeatmap = false" />
 
+    <!-- Mobile/Tablet inline filter panel (Phase 1: replaces sidebar overlay step) -->
+    <Transition name="fade">
+      <div
+        v-if="showMobileFilter && screenSize !== 'desktop'"
+        class="px-4 py-3 bg-white border-b border-slate-200 space-y-3"
+      >
+        <!-- Projects -->
+        <div>
+          <div class="text-[10px] text-text-muted uppercase tracking-wider mb-2 font-semibold">Projects</div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="p in projects"
+              :key="p.name"
+              class="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors border"
+              :class="filters.project === p.name
+                ? 'bg-accent-600 text-white border-accent-600'
+                : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
+              @click="setFilter('project', filters.project === p.name ? undefined : p.name); showMobileFilter = false"
+            >
+              {{ p.name }}
+            </button>
+            <button
+              v-if="filters.project"
+              class="text-xs px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
+              @click="setFilter('project', undefined); showMobileFilter = false"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+        <!-- People -->
+        <div>
+          <div class="text-[10px] text-text-muted uppercase tracking-wider mb-2 font-semibold">People</div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="p in people"
+              :key="p.name"
+              class="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors border"
+              :class="filters.person === p.name
+                ? 'bg-accent-600 text-white border-accent-600'
+                : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
+              @click="setFilter('person', filters.person === p.name ? undefined : p.name); showMobileFilter = false"
+            >
+              {{ p.name }}
+            </button>
+            <button
+              v-if="filters.person"
+              class="text-xs px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
+              @click="setFilter('person', undefined); showMobileFilter = false"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+        <!-- Quick actions -->
+        <div class="flex items-center gap-2 pt-1 border-t border-border-subtle">
+          <button
+            class="text-xs text-text-muted hover:text-text-primary transition-colors px-2 py-1"
+            @click="showLeftOverlay = true; showMobileFilter = false"
+          >
+            Manage nodes...
+          </button>
+          <button
+            v-if="hasActiveFilter"
+            class="text-xs text-danger hover:bg-danger-light transition-colors px-2 py-1 rounded-lg"
+            @click="clearAllFilters(); showMobileFilter = false"
+          >
+            Clear all filters
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Main content area -->
     <div class="flex-1 flex overflow-hidden">
       <!-- Desktop layout -->
@@ -333,6 +461,7 @@ function handleCommand(action: string) {
           :loading="loading"
           :has-more="hasMore"
           :selected-id="selectedBlockId"
+          :dimmed-block-ids="dimmedBlockIds"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
@@ -341,6 +470,7 @@ function handleCommand(action: string) {
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
           @request-followup="handleRequestFollowup"
+          @request-graph="handleRequestGraph"
           @move-block="handleMoveBlock"
           @create-in-project="(content) => handleCreate(content)"
         />
@@ -356,6 +486,7 @@ function handleCommand(action: string) {
           :project-filter="filters.project"
           :since-date="filters.since"
           :until-date="filters.until"
+          :dimmed-block-ids="dimmedBlockIds"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
@@ -364,6 +495,17 @@ function handleCommand(action: string) {
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
           @request-followup="handleRequestFollowup"
+          @request-graph="handleRequestGraph"
+        />
+        <!-- Right panel: Graph/Thread (Phase 2) -->
+        <RightGraphPanel
+          v-if="activeGraphBlockId"
+          :block-id="activeGraphBlockId"
+          :project-node-id="null"
+          :project-name="null"
+          :all-blocks="visibleBlocks"
+          @navigate-to="id => { selectedBlockId = id; activeGraphBlockId = id }"
+          @close="closeRightPanel"
         />
       </template>
 
@@ -389,6 +531,7 @@ function handleCommand(action: string) {
           :loading="loading"
           :has-more="hasMore"
           :selected-id="selectedBlockId"
+          :dimmed-block-ids="dimmedBlockIds"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
@@ -397,6 +540,7 @@ function handleCommand(action: string) {
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
           @request-followup="handleRequestFollowup"
+          @request-graph="handleRequestGraph"
           @move-block="handleMoveBlock"
           @create-in-project="(content) => handleCreate(content)"
         />
@@ -412,6 +556,7 @@ function handleCommand(action: string) {
           :project-filter="filters.project"
           :since-date="filters.since"
           :until-date="filters.until"
+          :dimmed-block-ids="dimmedBlockIds"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
@@ -420,6 +565,17 @@ function handleCommand(action: string) {
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
           @request-followup="handleRequestFollowup"
+          @request-graph="handleRequestGraph"
+        />
+        <RightGraphPanel
+          v-if="activeGraphBlockId"
+          :block-id="activeGraphBlockId"
+          :project-node-id="null"
+          :project-name="null"
+          :all-blocks="visibleBlocks"
+          style="width: 260px"
+          @navigate-to="id => { selectedBlockId = id; activeGraphBlockId = id }"
+          @close="closeRightPanel"
         />
       </template>
 
@@ -432,6 +588,7 @@ function handleCommand(action: string) {
           :loading="loading"
           :has-more="hasMore"
           :selected-id="selectedBlockId"
+          :dimmed-block-ids="dimmedBlockIds"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
@@ -440,6 +597,7 @@ function handleCommand(action: string) {
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
           @request-followup="handleRequestFollowup"
+          @request-graph="handleRequestGraph"
           @move-block="handleMoveBlock"
           @create-in-project="(content) => handleCreate(content)"
         />
@@ -455,6 +613,7 @@ function handleCommand(action: string) {
           :project-filter="filters.project"
           :since-date="filters.since"
           :until-date="filters.until"
+          :dimmed-block-ids="dimmedBlockIds"
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
@@ -463,6 +622,7 @@ function handleCommand(action: string) {
           @delete="handleDelete"
           @request-edit="handleRequestEdit"
           @request-followup="handleRequestFollowup"
+          @request-graph="handleRequestGraph"
         />
       </template>
     </div>
@@ -472,6 +632,16 @@ function handleCommand(action: string) {
       :prefill-content="inputPrefillContent"
       @send="handleCreate"
       @clear-prefill="inputPrefillProject = undefined; inputPrefillContent = undefined"
+    />
+
+    <!-- Mobile quick-actions drawer -->
+    <MobileDrawer
+      v-if="screenSize === 'mobile'"
+      :current-view="currentView"
+      :show-filter="showMobileFilter"
+      @toggle-view="handleMobileToggleView"
+      @toggle-filter="showMobileFilter = !showMobileFilter"
+      @open-search="handleMobileOpenSearch"
     />
 
     <!-- Mobile/Tablet overlays -->
@@ -507,7 +677,7 @@ function handleCommand(action: string) {
       @save="handleEditorSave"
       @close="handleEditorClose"
     />
-    <CommandPalette @command="handleCommand" />
+    <CommandPalette @command="handleCommand" @select-block="handleSelectBlock" />
     <WebhookSettings v-if="showWebhooks" @close="showWebhooks = false" />
     <AIPanel
       v-if="showAI"

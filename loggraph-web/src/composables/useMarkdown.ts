@@ -21,8 +21,30 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   }
 })
 
+function capsulizeTags(text: string): string {
+  const codeBlocks: string[] = []
+  let processed = text.replace(/```[\s\S]*?```/g, (m) => {
+    codeBlocks.push(m)
+    return `\x00CODE${codeBlocks.length - 1}\x00`
+  })
+  processed = processed.replace(/`[^`]+`/g, (m) => {
+    codeBlocks.push(m)
+    return `\x00CODE${codeBlocks.length - 1}\x00`
+  })
+
+  processed = processed.replace(/(^|\s)&([^\s&<>]+)/g,
+    '$1<span class="tag-capsule tag-project">&amp;$2</span>')
+  processed = processed.replace(/(^|\s)@([^\s@<>]+)/g,
+    '$1<span class="tag-capsule tag-person">@$2</span>')
+  processed = processed.replace(/(^|\s)\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi,
+    '$1<span class="tag-capsule tag-reference">^$2</span>')
+
+  return processed.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[parseInt(i)])
+}
+
 export function renderMarkdown(text: string): string {
-  const raw = marked.parse(text) as string
+  const capsulized = capsulizeTags(text)
+  const raw = marked.parse(capsulized) as string
   return DOMPurify.sanitize(raw)
 }
 

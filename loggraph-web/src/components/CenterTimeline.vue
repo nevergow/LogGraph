@@ -16,6 +16,7 @@ const props = defineProps<{
   projectFilter?: string
   sinceDate?: string
   untilDate?: string
+  dimmedBlockIds?: Set<string>
 }>()
 
 const emit = defineEmits<{
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   delete: [id: string]
   'request-edit': [id: string]
   'request-followup': [block: Block]
+  'request-graph': [id: string]
 }>()
 
 const hideCompleted = ref(false)
@@ -42,7 +44,7 @@ onUnmounted(() => {
 })
 
 function nodeColor(s: string): string {
-  if (s === 'completed') return 'bg-emerald-400'
+  if (s === 'completed') return 'bg-slate-400'
   if (s === 'blocked') return 'bg-red-400'
   return 'bg-accent-400'
 }
@@ -218,12 +220,14 @@ function onTimelineScroll() {
               :block="block"
               :selected="selectedId === block.id"
               :screen-size="screenSize"
+              :dimmed="dimmedBlockIds?.has(block.id) ?? false"
               @select="id => emit('select', id)"
               @toggle-status="(id, current) => emit('toggle-status', id, current)"
               @archive="id => emit('archive', id)"
               @delete="id => emit('delete', id)"
               @request-edit="id => emit('request-edit', id)"
               @request-followup="block => emit('request-followup', block)"
+              @request-graph="id => emit('request-graph', id)"
             />
           </div>
         </div>

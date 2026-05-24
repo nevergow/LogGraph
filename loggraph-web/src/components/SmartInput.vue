@@ -46,9 +46,28 @@ const editor = useEditor({
         return true
       }
       if (e.key === 'Escape') {
+        if (showSlashMenu.value) {
+          showSlashMenu.value = false
+          return true
+        }
         e.preventDefault()
         collapse()
         return true
+      }
+      if (e.key === '/') {
+        const { $from } = editor.value!.state.selection
+        const isLineStart = $from.parentOffset === 0
+        if (isLineStart) {
+          showSlashMenu.value = true
+          slashMenuIndex.value = 0
+          // Don't prevent default: allow / to be typed, then filter it on select
+        }
+      }
+      if (showSlashMenu.value) {
+        onSlashKeydown(e)
+        if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) {
+          return true
+        }
       }
       return false
     },
@@ -94,13 +113,54 @@ function toggleFullscreen() {
 // ── TipTap toolbar actions ──
 function tipTapBold() { editor.value?.chain().focus().toggleBold().run() }
 function tipTapItalic() { editor.value?.chain().focus().toggleItalic().run() }
-function tipTapStrike() { editor.value?.chain().focus().toggleStrike().run() }
-function tipTapHeading() { editor.value?.chain().focus().toggleHeading({ level: 2 }).run() }
 function tipTapBulletList() { editor.value?.chain().focus().toggleBulletList().run() }
 function tipTapCode() { editor.value?.chain().focus().toggleCode().run() }
 function tipTapBlockquote() { editor.value?.chain().focus().toggleBlockquote().run() }
 function tipTapInsertTag(ch: string) {
   editor.value?.chain().focus().insertContent(ch).run()
+}
+
+// ── Slash menu ──
+const showSlashMenu = ref(false)
+const slashMenuIndex = ref(0)
+const slashItems = [
+  { id: 'text', label: 'Text', icon: 'T', action: () => insertSlash('') },
+  { id: 'bullet', label: 'Bullet List', icon: '☰', action: () => insertSlash('- ') },
+  { id: 'code', label: 'Code Block', icon: '</>', action: () => insertSlash('```\n\n```', true) },
+  { id: 'quote', label: 'Blockquote', icon: '"', action: () => insertSlash('> ') },
+  { id: 'divider', label: 'Divider', icon: '—', action: () => insertSlash('---\n') },
+]
+
+function insertSlash(text: string, moveUp?: boolean) {
+  if (!editor.value) return
+  showSlashMenu.value = false
+  const { $from } = editor.value.state.selection
+  const lineStart = $from.start()
+  editor.value.chain().focus().deleteRange({ from: lineStart, to: $from.pos }).run()
+  if (moveUp) {
+    const pos = editor.value.state.selection.from
+    editor.value.chain().focus().insertContent(text).run()
+    editor.value.commands.setTextSelection(pos + 3)
+  } else {
+    editor.value.chain().focus().insertContent(text).run()
+  }
+}
+
+function onSlashKeydown(e: KeyboardEvent) {
+  if (!showSlashMenu.value) return
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    slashMenuIndex.value = Math.min(slashMenuIndex.value + 1, slashItems.length - 1)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    slashMenuIndex.value = Math.max(slashMenuIndex.value - 1, 0)
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    slashItems[slashMenuIndex.value].action()
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    showSlashMenu.value = false
+  }
 }
 
 // ── Autocomplete state ──
@@ -394,14 +454,8 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- ── Expanded mode ── -->
+    <!-- ── Expanded mode (non-modal: no backdrop overlay) ── -->
     <Teleport to="body">
-      <div
-        v-if="isExpanded"
-        class="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-        :class="{ 'bg-black/40': isFullscreen }"
-        @click="collapse"
-      />
       <div
         v-if="isExpanded"
         class="fixed z-50 bg-white border border-slate-200 shadow-elevated flex flex-col overflow-hidden"
@@ -414,11 +468,9 @@ onUnmounted(() => {
         <div class="flex items-center gap-1 px-4 py-3 border-b border-border-subtle shrink-0">
           <button class="toolbar-btn font-bold" @click="tipTapBold" title="Bold">B</button>
           <button class="toolbar-btn italic" @click="tipTapItalic" title="Italic">I</button>
-          <button class="toolbar-btn" @click="tipTapStrike" title="Strikethrough"><span class="line-through">S</span></button>
 
           <span class="w-px h-5 bg-border-light mx-2" />
 
-          <button class="toolbar-btn font-semibold text-[15px]" :class="{ 'text-accent-600 bg-accent-50': editor?.isActive('heading', { level: 2 }) }" @click="tipTapHeading" title="Heading">H</button>
           <button class="toolbar-btn" :class="{ 'text-accent-600 bg-accent-50': editor?.isActive('bulletList') }" @click="tipTapBulletList" title="Bullet list">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -459,7 +511,26 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <EditorContent :editor="editor" class="flex flex-1 overflow-hidden" />
+        <div class="flex-1 relative">
+          <EditorContent :editor="editor" class="flex-1 overflow-hidden h-full" />
+          <!-- Slash menu -->
+          <div
+            v-if="showSlashMenu"
+            class="absolute bottom-4 left-4 z-10 flex items-center gap-1 p-1.5 bg-white rounded-xl shadow-elevated border border-slate-200"
+          >
+            <button
+              v-for="(item, i) in slashItems"
+              :key="item.id"
+              class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors whitespace-nowrap"
+              :class="i === slashMenuIndex ? 'bg-accent-50 text-accent-700' : 'text-text-secondary hover:bg-surface-100'"
+              @click="item.action()"
+              @mouseenter="slashMenuIndex = i"
+            >
+              <span class="w-5 h-5 flex items-center justify-center font-mono text-[11px] font-semibold rounded bg-surface-100">{{ item.icon }}</span>
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
 
         <!-- Footer -->
         <div class="px-4 py-3 border-t border-border-subtle flex items-center justify-between shrink-0 gap-3">

@@ -2,18 +2,61 @@
 import { ref, watch, computed } from 'vue'
 import { VueFlow, MarkerType, type Node as VFNode, type Edge as VFEdge } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
-import type { GraphData } from '../types'
+import type { GraphData, Block } from '../types'
 import { blocksApi } from '../api/blocks'
+import { extractTitle } from '../composables/useMarkdown'
 
 const props = defineProps<{
   blockId: string | null
   projectNodeId: string | null
   projectName: string | null
+  allBlocks?: Block[]
+}>()
+
+const emit = defineEmits<{
+  'navigate-to': [blockId: string]
+  close: []
 }>()
 
 const graphData = ref<GraphData | null>(null)
 const loading = ref(false)
 const mode = ref<'block' | 'project' | 'empty'>('empty')
+const activeTab = ref<'graph' | 'thread'>('graph')
+
+// Thread tab: find related blocks by parsing ^uuid references
+const relatedBlocks = computed(() => {
+  if (!props.blockId || !props.allBlocks?.length) return []
+  const related: Block[] = []
+  for (const b of props.allBlocks) {
+    // Find blocks that reference this block, or are referenced by this block
+    const uuidRe = /\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi
+    let match
+    while ((match = uuidRe.exec(b.content)) !== null) {
+      if (match[1] === props.blockId) { related.push(b); break }
+    }
+    uuidRe.lastIndex = 0
+    if (b.id === props.blockId) {
+      while ((match = uuidRe.exec(b.content)) !== null) {
+        const refBlock = props.allBlocks.find(r => r.id === match![1])
+        if (refBlock && !related.find(r => r.id === refBlock.id)) related.push(refBlock)
+      }
+      uuidRe.lastIndex = 0
+    }
+  }
+  return related
+})
+
+function formatTime(ts: string): string {
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function statusColor(s: string): string {
+  if (s === 'blocked') return '#DC2626'
+  if (s === 'completed') return '#94A3B8'
+  return '#3B82F6'
+}
 
 async function fetchBlockGraph(id: string) {
   loading.value = true
@@ -44,18 +87,26 @@ async function fetchNodeGraph(id: string) {
 }
 
 watch(() => props.blockId, async (id) => {
-  if (id) { await fetchBlockGraph(id); return }
+  if (id) { await fetchBlockGraph(id); activeTab.value = 'thread'; return }
   if (props.projectNodeId) { await fetchNodeGraph(props.projectNodeId); return }
   graphData.value = null
   mode.value = 'empty'
 }, { immediate: true })
 
 watch(() => props.projectNodeId, async (id) => {
-  if (props.blockId) return // block view takes precedence
+  if (props.blockId) return
   if (id) { await fetchNodeGraph(id); return }
   graphData.value = null
   mode.value = 'empty'
 })
+
+// Keyboard: Esc to close
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') emit('close')
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', onKeydown)
+}
 
 const nodeTypeColors: Record<string, string> = {
   project: '#3b82f6',
@@ -75,7 +126,6 @@ const vfNodes = computed<VFNode[]>(() => {
   const nodes: VFNode[] = []
 
   if (mode.value === 'block') {
-    // Central block
     nodes.push({
       id: g.block.id,
       type: 'default',
@@ -86,7 +136,6 @@ const vfNodes = computed<VFNode[]>(() => {
         borderRadius: '8px', padding: '10px 14px', fontSize: '12px', maxWidth: '220px',
       },
     })
-    // Node entities around the center
     g.nodes.forEach((n, i) => {
       const angle = (2 * Math.PI * i) / g.nodes.length
       nodes.push({
@@ -100,11 +149,8 @@ const vfNodes = computed<VFNode[]>(() => {
       })
     })
   } else {
-    // Project-centric: center is the selected node, surrounding are blocks and other nodes
     const centerNode = g.nodes.find(n => n.id === props.projectNodeId)
     const otherNodes = g.nodes.filter(n => n.id !== props.projectNodeId)
-
-    // Center: project/standard node
     nodes.push({
       id: props.projectNodeId || 'center',
       type: 'default',
@@ -115,8 +161,6 @@ const vfNodes = computed<VFNode[]>(() => {
         borderRadius: '24px', padding: '10px 18px', fontSize: '13px', fontWeight: 600,
       },
     })
-
-    // Other related nodes in a ring
     otherNodes.forEach((n, i) => {
       const angle = (2 * Math.PI * i) / Math.max(otherNodes.length, 1)
       nodes.push({
@@ -151,25 +195,72 @@ const vfEdges = computed<VFEdge[]>(() => {
 </script>
 
 <template>
-  <aside class="border-l border-gray-200 bg-white shrink-0 overflow-hidden flex flex-col">
+  <aside class="border-l border-gray-200 bg-white shrink-0 overflow-hidden flex flex-col" style="width: 320px">
+    <!-- Tab bar -->
+    <div class="flex items-center border-b border-gray-100 shrink-0">
+      <button
+        class="flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2"
+        :class="activeTab === 'thread' ? 'text-accent-600 border-accent-600' : 'text-text-muted border-transparent hover:text-text-secondary'"
+        @click="activeTab = 'thread'"
+      >Thread</button>
+      <button
+        class="flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2"
+        :class="activeTab === 'graph' ? 'text-accent-600 border-accent-600' : 'text-text-muted border-transparent hover:text-text-secondary'"
+        @click="activeTab = 'graph'"
+      >Graph</button>
+      <button
+        class="px-3 py-2.5 text-text-muted hover:text-text-primary transition-colors"
+        @click="emit('close')"
+        title="Close (Esc)"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Empty state -->
     <div v-if="!blockId && !projectNodeId" class="p-4 text-xs text-gray-400 text-center pt-12 flex-1">
-      Click a block or select a project to see its graph
+      Click a block's Connections to see its thread and graph
     </div>
 
+    <!-- Loading -->
     <div v-else-if="loading" class="p-4 text-xs text-gray-400 text-center pt-12 flex-1">
-      Loading graph...
+      Loading...
     </div>
 
-    <div v-else-if="graphData" class="flex-1 flex flex-col">
-      <!-- Header -->
+    <!-- Thread tab -->
+    <div v-else-if="activeTab === 'thread' && blockId" class="flex-1 overflow-y-auto">
+      <div class="px-3 py-2 border-b border-gray-100 text-[11px] text-text-muted shrink-0">
+        {{ relatedBlocks.length }} related block{{ relatedBlocks.length !== 1 ? 's' : '' }}
+      </div>
+      <div v-if="relatedBlocks.length === 0" class="p-4 text-xs text-text-muted text-center">
+        No related blocks found
+      </div>
+      <div v-else class="py-1">
+        <button
+          v-for="rb in relatedBlocks"
+          :key="rb.id"
+          class="w-full text-left px-3 py-2.5 hover:bg-surface-50 transition-colors border-b border-gray-50 last:border-0"
+          @click="emit('navigate-to', rb.id)"
+        >
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: statusColor(rb.status) }" />
+            <span class="text-xs font-mono text-text-muted">{{ formatTime(rb.created_at) }}</span>
+          </div>
+          <div class="text-xs text-text-primary line-clamp-2 leading-relaxed ml-4">{{ extractTitle(rb.content) }}</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Graph tab -->
+    <div v-else-if="activeTab === 'graph' && graphData" class="flex-1 flex flex-col">
       <div class="px-3 py-2 border-b border-gray-100 text-xs text-gray-500 flex gap-3 shrink-0">
         <span v-if="mode === 'project'" class="font-medium text-blue-600">{{ projectName || 'Project' }}</span>
         <span>{{ graphData.nodes.length }} nodes</span>
         <span>{{ graphData.edges.length }} edges</span>
         <span v-if="mode === 'project'" class="text-gray-300">{{ graphData.edges.filter(e => e.label === 'mentions').length }} blocks</span>
       </div>
-
-      <!-- Vue Flow graph -->
       <div class="flex-1">
         <VueFlow
           :nodes="vfNodes"
@@ -182,8 +273,6 @@ const vfEdges = computed<VFEdge[]>(() => {
           <Background :gap="20" :size="1" />
         </VueFlow>
       </div>
-
-      <!-- Detail footer -->
       <div class="border-t border-gray-100 px-3 py-2 shrink-0">
         <div v-if="mode === 'block'" class="text-[11px] text-gray-400 truncate">
           {{ graphData.block.content.slice(0, 80) }}

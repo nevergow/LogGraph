@@ -8,6 +8,7 @@ const props = defineProps<{
   selected: boolean
   screenSize?: 'mobile' | 'tablet' | 'desktop'
   draggable?: boolean
+  dimmed?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -40,18 +41,6 @@ onUnmounted(() => {
   document.removeEventListener('click', onDocumentClick)
 })
 
-function borderColor(s: string): string {
-  if (s === 'completed') return 'border-l-emerald-500'
-  if (s === 'blocked') return 'border-l-red-500'
-  return 'border-l-blue-500'
-}
-
-function statusBg(s: string): string {
-  if (s === 'blocked') return 'bg-red-50/30'
-  if (s === 'completed') return ''
-  return ''
-}
-
 function renderContent(text: string): string {
   return renderMarkdown(text)
 }
@@ -60,6 +49,27 @@ function renderContent(text: string): string {
 const hasRelations = computed(() =>
   props.block.referenced_by && props.block.referenced_by.length > 0
 )
+
+// Inline style for status colors — bypasses .card-surface CSS cascade
+const cardStyle = computed(() => {
+  const s = props.block.status
+  // When has relations, amber is handled by .block-related CSS class
+  if (hasRelations.value) return { borderLeftWidth: '3px' }
+  if (s === 'blocked') return {
+    borderLeftWidth: '3px',
+    borderLeftColor: '#DC2626',
+    backgroundColor: 'rgb(254, 242, 242)',
+  }
+  if (s === 'completed') return {
+    borderLeftWidth: '3px',
+    borderLeftColor: '#94A3B8',
+  }
+  // active
+  return {
+    borderLeftWidth: '3px',
+    borderLeftColor: '#3B82F6',
+  }
+})
 
 // ── Swipe (mobile only) ──
 const swipeX = ref(0)
@@ -158,18 +168,16 @@ function onDragStart(e: DragEvent) {
     <!-- Card — card-surface replaces glass -->
     <div
       class="card-surface rounded-xl cursor-pointer transition-all duration-200 hover:shadow-card-hover relative z-10 border-l-[3px]"
-      :class="[
-        hasRelations ? 'block-related' : borderColor(block.status),
-        statusBg(block.status),
-        {
-          'bg-blue-50/70 border-l-blue-500': selected,
-          'block-done': block.status === 'completed',
-          'block-done-transition': true,
-          'p-4': viewMode !== 'compact',
-          'p-3': viewMode === 'compact',
-        }
-      ]"
-      :style="swipeStyle"
+      :class="{
+        'block-dimmed': dimmed,
+        'block-related': hasRelations,
+        'bg-blue-50/80': selected,
+        'block-done': block.status === 'completed',
+        'block-done-transition': true,
+        'p-4': viewMode !== 'compact',
+        'p-3': viewMode === 'compact',
+      }"
+      :style="[cardStyle, swipeStyle]"
       @click="emit('select', block.id)"
       @dblclick="viewMode === 'compact' ? viewMode = 'expanded' : (viewMode === 'expanded' ? viewMode = 'compact' : null)"
     >

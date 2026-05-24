@@ -21,6 +21,7 @@ const props = defineProps<{
   hasMore: boolean
   selectedId: string | null
   screenSize?: 'mobile' | 'tablet' | 'desktop'
+  dimmedBlockIds?: Set<string>
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +33,7 @@ const emit = defineEmits<{
   delete: [id: string]
   'request-edit': [id: string]
   'request-followup': [block: Block]
+  'request-graph': [id: string]
   'move-block': [id: string, newContent: string]
   'create-in-project': [content: string]
 }>()
@@ -47,9 +49,92 @@ function toggleProject(name: string) {
   collapsedProjects.value = new Set(collapsedProjects.value)
 }
 
+// ── Parent-child relationship parsing (Phase 2) ──
+const uuidRe = /(?<!\^)\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi
+
+function extractParentId(content: string): string | null {
+  const match = uuidRe.exec(content)
+  uuidRe.lastIndex = 0
+  return match ? match[1] : null
+}
+
+// Build child map: parent id → child blocks
+const childMap = computed(() => {
+  const blockSet = new Set(filteredBlocks.value.map(b => b.id))
+  const map = new Map<string, Block[]>()
+  for (const b of filteredBlocks.value) {
+    const parentId = extractParentId(b.content)
+    if (parentId && blockSet.has(parentId)) {
+      if (!map.has(parentId)) map.set(parentId, [])
+      map.get(parentId)!.push(b)
+    }
+  }
+  return map
+})
+
+// Parent lookup: child id → parent block (for cross-status trace)
+const parentMap = computed(() => {
+  const map = new Map<string, Block>()
+  for (const b of filteredBlocks.value) {
+    const parentId = extractParentId(b.content)
+    if (parentId) {
+      const parent = filteredBlocks.value.find(p => p.id === parentId)
+      if (parent) map.set(b.id, parent)
+    }
+  }
+  return map
+})
+
+// Set of block IDs that are children (to filter out from root list)
+const childIds = computed(() => {
+  const ids = new Set<string>()
+  for (const children of childMap.value.values()) {
+    for (const c of children) ids.add(c.id)
+  }
+  return ids
+})
+
+const collapsedDesktop = ref<Set<string>>(new Set()) // desktop: add to collapse
+const expandedMobile = ref<Set<string>>(new Set())  // mobile: add to expand
+
+function toggleChildren(parentId: string) {
+  if (props.screenSize === 'mobile') {
+    if (expandedMobile.value.has(parentId)) {
+      expandedMobile.value.delete(parentId)
+    } else {
+      expandedMobile.value.add(parentId)
+    }
+    expandedMobile.value = new Set(expandedMobile.value)
+  } else {
+    if (collapsedDesktop.value.has(parentId)) {
+      collapsedDesktop.value.delete(parentId)
+    } else {
+      collapsedDesktop.value.add(parentId)
+    }
+    collapsedDesktop.value = new Set(collapsedDesktop.value)
+  }
+}
+
+function isChildrenVisible(parentId: string): boolean {
+  if (props.screenSize === 'mobile') return expandedMobile.value.has(parentId)
+  return !collapsedDesktop.value.has(parentId)
+}
+
+function guideColor(status: string): string {
+  if (status === 'blocked') return '#DC2626'
+  if (status === 'completed') return '#94A3B8'
+  return '#3B82F6'
+}
+
+function shortTitle(content: string): string {
+  const cleaned = content.replace(/~~(.+?)~~/g, '$1').replace(/\[BLOCK\]/gi, '').replace(/[@#&^]\S+/g, '').trim()
+  return cleaned.slice(0, 50) + (cleaned.length > 50 ? '...' : '') || '(empty)'
+}
+
 interface ProjectGroup {
   name: string
   blocks: Block[]
+  rootBlocks: Block[]
   counts: { active: number; completed: number; blocked: number }
   allDone: boolean
   isUnfiled: boolean
@@ -71,7 +156,8 @@ const projectGroups = computed<ProjectGroup[]>(() => {
         else if (b.status === 'completed') counts.completed++
         else if (b.status === 'blocked') counts.blocked++
       }
-      return { name, blocks, counts, allDone: counts.active === 0 && blocks.length > 0, isUnfiled: name === 'Unfiled' }
+      const rootBlocks = blocks.filter(b => !childIds.value.has(b.id))
+      return { name, blocks, rootBlocks, counts, allDone: counts.active === 0 && counts.blocked === 0 && blocks.length > 0, isUnfiled: name === 'Unfiled' }
     })
     .sort((a, b) => {
       if (a.name === 'Unfiled') return 1
@@ -223,8 +309,8 @@ function onInlineKeydown(e: KeyboardEvent) {
                     <span class="w-1.5 h-1.5 rounded-full bg-accent-500" />
                     {{ group.counts.active }} Active
                   </span>
-                  <span v-if="group.counts.completed > 0" class="inline-flex items-center gap-1 text-[10px] bg-success-light text-success px-2 py-0.5 rounded-full font-semibold">
-                    <span class="w-1.5 h-1.5 rounded-full bg-success" />
+                  <span v-if="group.counts.completed > 0" class="inline-flex items-center gap-1 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400" />
                     {{ group.counts.completed }} Done
                   </span>
                   <span v-if="group.counts.blocked > 0" class="inline-flex items-center gap-1 text-[10px] bg-danger-light text-danger px-2 py-0.5 rounded-full font-semibold">
@@ -254,25 +340,117 @@ function onInlineKeydown(e: KeyboardEvent) {
             Use <code class="text-accent-500 bg-accent-50 px-1 py-0.5 rounded font-medium">&amp;projectName</code> to assign
           </p>
 
-          <!-- Project blocks -->
+          <!-- Project blocks with parent-child hierarchy (Phase 2) -->
           <div
             v-if="!collapsedProjects.has(group.name)"
             class="space-y-3"
           >
-            <BlockCard
-              v-for="block in group.blocks"
-              :key="block.id"
-              :block="block"
-              :selected="selectedId === block.id"
-              :screen-size="screenSize"
-              :draggable="true"
-              @select="id => emit('select', id)"
-              @toggle-status="(id, current) => emit('toggle-status', id, current)"
-              @archive="id => emit('archive', id)"
-              @delete="id => emit('delete', id)"
-              @request-edit="id => emit('request-edit', id)"
-              @request-followup="block => emit('request-followup', block)"
-            />
+            <template v-for="block in group.rootBlocks" :key="block.id">
+              <!-- Parent block -->
+              <div class="relative">
+                <!-- Collapse/expand triangle (desktop only, if has children) -->
+                <div
+                  v-if="childMap.has(block.id) && screenSize !== 'mobile'"
+                  class="flex items-center gap-1"
+                >
+                  <button
+                    class="shrink-0 p-1 rounded hover:bg-surface-100 transition-colors"
+                    @click.stop="toggleChildren(block.id)"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 text-text-muted transition-transform duration-200"
+                      :class="{ 'rotate-90': !collapsedDesktop.has(block.id) }"
+                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    >
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <span class="text-[10px] text-text-muted font-medium">
+                    {{ childMap.get(block.id)!.length }} follow-up{{ childMap.get(block.id)!.length > 1 ? 's' : '' }}
+                  </span>
+                </div>
+                <div :class="{ 'ml-1': childMap.has(block.id) }">
+                  <BlockCard
+                    :block="block"
+                    :selected="selectedId === block.id"
+                    :screen-size="screenSize"
+                    :draggable="true"
+                    :dimmed="dimmedBlockIds?.has(block.id) ?? false"
+                    @select="id => emit('select', id)"
+                    @toggle-status="(id, current) => emit('toggle-status', id, current)"
+                    @archive="id => emit('archive', id)"
+                    @delete="id => emit('delete', id)"
+                    @request-edit="id => emit('request-edit', id)"
+                    @request-followup="block => emit('request-followup', block)"
+                    @request-graph="id => emit('request-graph', id)"
+                  />
+                </div>
+              </div>
+
+              <!-- Child blocks (Phase 2) -->
+              <template v-if="childMap.has(block.id)">
+                <!-- Mobile: collapsed → capsule button -->
+                <div
+                  v-if="screenSize === 'mobile' && !expandedMobile.has(block.id)"
+                  class="ml-3"
+                >
+                  <button
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-accent-600 bg-accent-50 hover:bg-accent-100 rounded-full transition-colors border border-accent-200/50"
+                    @click.stop="toggleChildren(block.id)"
+                  >
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    +{{ childMap.get(block.id)!.length }} 条跟进
+                  </button>
+                </div>
+
+                <!-- Expanded children -->
+                <div
+                  v-if="isChildrenVisible(block.id)"
+                  class="space-y-2"
+                  :class="screenSize === 'mobile' ? 'ml-3' : 'ml-6'"
+                >
+                  <div
+                    v-for="child in childMap.get(block.id)"
+                    :key="child.id"
+                    class="relative"
+                  >
+                    <!-- Guide line -->
+                    <div
+                      class="absolute top-0 bottom-0 rounded-full"
+                      :class="screenSize === 'mobile' ? 'left-[-18px] w-[3px]' : 'left-[-16px] w-[3px]'"
+                      :style="{ backgroundColor: guideColor(block.status) }"
+                    />
+                    <!-- Cross-status trace label (mobile only) -->
+                    <div
+                      v-if="screenSize === 'mobile' && child.status !== block.status"
+                      class="mb-1"
+                    >
+                      <span class="text-[10px] text-text-muted inline-flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        源于: <span class="font-medium" :style="{ color: guideColor(block.status) }">[{{ block.status === 'active' ? 'Active' : block.status === 'completed' ? 'Done' : 'Blocked' }}]</span>
+                        {{ shortTitle(block.content) }}
+                      </span>
+                    </div>
+                    <BlockCard
+                      :block="child"
+                      :selected="selectedId === child.id"
+                      :screen-size="screenSize"
+                      :draggable="true"
+                      @select="id => emit('select', id)"
+                      @toggle-status="(id, current) => emit('toggle-status', id, current)"
+                      @archive="id => emit('archive', id)"
+                      @delete="id => emit('delete', id)"
+                      @request-edit="id => emit('request-edit', id)"
+                      @request-followup="block => emit('request-followup', block)"
+                    />
+                  </div>
+                </div>
+              </template>
+            </template>
 
             <!-- Per-project add button (Phase 1.5) -->
             <div v-if="addingToProject === group.name" class="px-1">
