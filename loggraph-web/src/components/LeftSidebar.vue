@@ -92,9 +92,19 @@ async function doDelete(id: string) {
   } catch { /* ignore */ }
 }
 
-// Toggle node selection on mobile (to show action buttons)
-function toggleNodeSelection(nodeId: string) {
-  activeNodeId.value = activeNodeId.value === nodeId ? null : nodeId
+const isDesktop = computed(() => props.screenSize === 'desktop')
+
+function handleItemClick(nodeId: string, name: string, type: 'project' | 'person') {
+  if (isDesktop.value) {
+    if (type === 'project') {
+      emit('select-project', name)
+    } else {
+      emit('select-person', name)
+    }
+  } else {
+    // On mobile/tablet, toggle selection to show action buttons
+    activeNodeId.value = activeNodeId.value === nodeId ? null : nodeId
+  }
 }
 </script>
 
@@ -176,7 +186,7 @@ function toggleNodeSelection(nodeId: string) {
                 : 'text-text-secondary hover:bg-surface-100',
               activeNodeId === p.id && 'bg-surface-100'
             ]"
-            @click="screenSize === 'desktop' ? emit('select-project', p.name) : toggleNodeSelection(p.id)"
+            @click="handleItemClick(p.id, p.name, 'project')"
           >
             <span class="w-2 h-2 rounded-full shrink-0" :class="p.type === 'standard' ? 'bg-brand-300' : 'bg-brand-500'" />
             <input
@@ -232,7 +242,7 @@ function toggleNodeSelection(nodeId: string) {
             :key="p.id"
             class="group relative px-3 py-2.5 rounded-xl text-sm cursor-pointer transition-all truncate flex items-center gap-3 card-lift text-text-secondary hover:bg-surface-100"
             :class="{ 'bg-surface-100': activeNodeId === p.id }"
-            @click="screenSize === 'desktop' ? emit('select-person', p.name) : toggleNodeSelection(p.id)"
+            @click="handleItemClick(p.id, p.name, 'person')"
           >
             <span class="w-2 h-2 rounded-full bg-success shrink-0" />
             <input
