@@ -22,7 +22,12 @@ const props = defineProps<{
   selectedId: string | null
   screenSize?: 'mobile' | 'tablet' | 'desktop'
   dimmedBlockIds?: Set<string>
+  projects?: { name: string; id: string }[]
+  people?: { name: string; id: string }[]
 }>()
+
+const knownProjectNames = computed(() => new Set((props.projects || []).map(p => p.name)))
+const knownPersonNames = computed(() => new Set((props.people || []).map(p => p.name)))
 
 const emit = defineEmits<{
   'load-more': []
@@ -376,6 +381,8 @@ function onInlineKeydown(e: KeyboardEvent) {
                     :screen-size="screenSize"
                     :draggable="true"
                     :dimmed="dimmedBlockIds?.has(block.id) ?? false"
+                    :known-projects="knownProjectNames"
+                    :known-people="knownPersonNames"
                     @select="id => emit('select', id)"
                     @toggle-status="(id, current) => emit('toggle-status', id, current)"
                     @archive="id => emit('archive', id)"
@@ -451,6 +458,8 @@ function onInlineKeydown(e: KeyboardEvent) {
                       :selected="selectedId === child.id"
                       :screen-size="screenSize"
                       :draggable="true"
+                      :known-projects="knownProjectNames"
+                      :known-people="knownPersonNames"
                       @select="id => emit('select', id)"
                       @toggle-status="(id, current) => emit('toggle-status', id, current)"
                       @archive="id => emit('archive', id)"

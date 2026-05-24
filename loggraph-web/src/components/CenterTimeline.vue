@@ -12,12 +12,16 @@ const props = defineProps<{
   selectedId: string | null
   screenSize?: 'mobile' | 'tablet' | 'desktop'
   projects?: { name: string; id: string }[]
+  people?: { name: string; id: string }[]
   statusFilter?: string
   projectFilter?: string
   sinceDate?: string
   untilDate?: string
   dimmedBlockIds?: Set<string>
 }>()
+
+const knownProjectNames = computed(() => new Set((props.projects || []).map(p => p.name)))
+const knownPersonNames = computed(() => new Set((props.people || []).map(p => p.name)))
 
 const emit = defineEmits<{
   'load-more': []
@@ -221,6 +225,8 @@ function onTimelineScroll() {
               :selected="selectedId === block.id"
               :screen-size="screenSize"
               :dimmed="dimmedBlockIds?.has(block.id) ?? false"
+              :known-projects="knownProjectNames"
+              :known-people="knownPersonNames"
               @select="id => emit('select', id)"
               @toggle-status="(id, current) => emit('toggle-status', id, current)"
               @archive="id => emit('archive', id)"

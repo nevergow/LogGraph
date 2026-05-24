@@ -9,6 +9,8 @@ const props = defineProps<{
   screenSize?: 'mobile' | 'tablet' | 'desktop'
   draggable?: boolean
   dimmed?: boolean
+  knownProjects?: Set<string>
+  knownPeople?: Set<string>
 }>()
 
 const emit = defineEmits<{
@@ -50,7 +52,7 @@ onUnmounted(() => {
 })
 
 function renderContent(text: string): string {
-  return renderMarkdown(text)
+  return renderMarkdown(text, props.knownProjects, props.knownPeople)
 }
 
 // Related blocks get amber signal
@@ -59,21 +61,28 @@ const hasRelations = computed(() =>
 )
 
 // Tag extraction: parse &Name, @Name, ^short-uuid from content for compact mode display
+// Only shows tags that match known projects/people to avoid false positives
 const compactTags = computed(() => {
   const tags: { type: string; value: string }[] = []
   const content = props.block.content
-  // Find &Project tags (avoid &amp; entities)
+  const knownP = props.knownProjects
+  const knownPe = props.knownPeople
+  // Find &Project tags — only if known
   const projectRe = /(?:^|\s)&([^\s&][^\s]*?)(?=\s|$)/g
   let m: RegExpExecArray | null
   while ((m = projectRe.exec(content)) !== null) {
-    tags.push({ type: 'project', value: m[1] })
+    if (!knownP || knownP.has(m[1])) {
+      tags.push({ type: 'project', value: m[1] })
+    }
   }
-  // Find @Person tags
+  // Find @Person tags — only if known
   const personRe = /(?:^|\s)@([^\s@][^\s]*?)(?=\s|$)/g
   while ((m = personRe.exec(content)) !== null) {
-    tags.push({ type: 'person', value: m[1] })
+    if (!knownPe || knownPe.has(m[1])) {
+      tags.push({ type: 'person', value: m[1] })
+    }
   }
-  // Find ^uuid tags (short display)
+  // Find ^uuid tags (short display) — always match
   const refRe = /\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi
   while ((m = refRe.exec(content)) !== null) {
     tags.push({ type: 'reference', value: m[1].slice(0, 8) })
@@ -234,12 +243,12 @@ function onDragStart(e: DragEvent) {
           <Teleport to="body">
             <div
               v-if="showMoreMenu"
-              class="fixed inset-0 z-60"
+              class="fixed inset-0 z-[60]"
               @click="closeMoreMenu"
             />
             <div
               v-if="showMoreMenu"
-              class="fixed z-70 mt-2 bg-white border border-slate-200 rounded-xl shadow-elevated py-2 min-w-[140px]"
+              class="fixed z-[70] mt-2 bg-white border border-slate-200 rounded-xl shadow-elevated py-2 min-w-[140px]"
               :style="moreMenuPosition"
               @click.stop
             >
@@ -289,7 +298,7 @@ function onDragStart(e: DragEvent) {
             :title="`Status: ${block.status} — click to cycle`"
             @click.stop="emit('toggle-status', block.id, block.status)"
           />
-          <span class="text-sm text-text-primary truncate flex-1 font-medium" :class="{ 'text-text-muted line-through': block.status === 'completed' }">{{ extractTitle(block.content) }}</span>
+          <span class="text-sm text-text-primary truncate flex-1 font-medium" :class="{ 'text-text-muted line-through': block.status === 'completed' }">{{ extractTitle(block.content, props.knownProjects, props.knownPeople) }}</span>
           <button
             class="shrink-0 p-1 rounded-lg hover:bg-surface-100 text-text-muted hover:text-text-primary transition-colors"
             title="Expand"

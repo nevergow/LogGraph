@@ -21,7 +21,35 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   }
 })
 
-function capsulizeTags(text: string): string {
+/**
+ * Strip binding syntax (&Name, @Person, ^uuid) from text.
+ * Only strips known projects/people; ^uuid is always stripped.
+ */
+export function stripBindingTags(text: string, knownProjects?: Set<string>, knownPeople?: Set<string>): string {
+  let result = text
+  if (knownProjects) {
+    // Build regex dynamically from known project names (sorted longest-first to avoid partial matches)
+    const names = [...knownProjects].sort((a, b) => b.length - a.length)
+    if (names.length > 0) {
+      const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      const projectRe = new RegExp(`(^|\\s)&(${escaped.join('|')})(?=\\s|$)`, 'g')
+      result = result.replace(projectRe, '$1')
+    }
+  }
+  if (knownPeople) {
+    const names = [...knownPeople].sort((a, b) => b.length - a.length)
+    if (names.length > 0) {
+      const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      const personRe = new RegExp(`(^|\\s)@(${escaped.join('|')})(?=\\s|$)`, 'g')
+      result = result.replace(personRe, '$1')
+    }
+  }
+  // ^uuid references are always stripped (can't be accidental)
+  result = result.replace(/(^|\s)\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi, '$1')
+  return result
+}
+
+function capsulizeTags(text: string, knownProjects?: Set<string>, knownPeople?: Set<string>): string {
   const codeBlocks: string[] = []
   let processed = text.replace(/```[\s\S]*?```/g, (m) => {
     codeBlocks.push(m)
@@ -32,24 +60,33 @@ function capsulizeTags(text: string): string {
     return `\x00CODE${codeBlocks.length - 1}\x00`
   })
 
-  processed = processed.replace(/(^|\s)&([^\s&<>]+)/g,
-    '$1<span class="tag-capsule tag-project">&amp;$2</span>')
-  processed = processed.replace(/(^|\s)@([^\s@<>]+)/g,
-    '$1<span class="tag-capsule tag-person">@$2</span>')
+  // Only capsulize &Name if known project (or if no known list, always capsulize)
+  processed = processed.replace(/(^|\s)&([^\s&<>]+)/g, (match, before, name) => {
+    if (knownProjects && !knownProjects.has(name)) return match
+    return `${before}<span class="tag-capsule tag-project">&amp;${name}</span>`
+  })
+  // Only capsulize @Person if known person (or if no known list, always capsulize)
+  processed = processed.replace(/(^|\s)@([^\s@<>]+)/g, (match, before, name) => {
+    if (knownPeople && !knownPeople.has(name)) return match
+    return `${before}<span class="tag-capsule tag-person">@${name}</span>`
+  })
+  // ^uuid is always capsulized
   processed = processed.replace(/(^|\s)\^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/gi,
     '$1<span class="tag-capsule tag-reference">^$2</span>')
 
   return processed.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[parseInt(i)])
 }
 
-export function renderMarkdown(text: string): string {
-  const capsulized = capsulizeTags(text)
+export function renderMarkdown(text: string, knownProjects?: Set<string>, knownPeople?: Set<string>): string {
+  const capsulized = capsulizeTags(text, knownProjects, knownPeople)
   const raw = marked.parse(capsulized) as string
   return DOMPurify.sanitize(raw)
 }
 
-export function extractTitle(text: string): string {
-  const tokens = marked.lexer(text)
+export function extractTitle(text: string, knownProjects?: Set<string>, knownPeople?: Set<string>): string {
+  // Strip binding tags first so &Name doesn't appear in title
+  const cleaned = stripBindingTags(text, knownProjects, knownPeople)
+  const tokens = marked.lexer(cleaned)
   // Find highest-level heading first
   let bestHeading = ''
   let bestLevel = 7
@@ -76,5 +113,5 @@ export function extractTitle(text: string): string {
   }
 
   // Ultimate fallback: first line of raw content
-  return text.split('\n')[0] || ''
+  return cleaned.split('\n')[0] || ''
 }

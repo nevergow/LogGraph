@@ -273,19 +273,19 @@ func (r *BlockRepo) Delete(ctx context.Context, id string) error {
 	return tx.Commit(ctx)
 }
 
-// ReplaceProjectInContent replaces all occurrences of #oldName with #newName
+// ReplaceProjectInContent replaces all occurrences of &oldName with &newName
 // in block content. Used when renaming a project/person node with cascade.
 func (r *BlockRepo) ReplaceProjectInContent(ctx context.Context, oldName, newName string) (int64, error) {
 	escapedOld := escapeRegex(oldName)
-	pattern := `(^|\s)#` + escapedOld + `(\s|$)`
-	replacement := `\1#` + newName + `\2`
+	pattern := `(^|\s)&` + escapedOld + `(\s|$)`
+	replacement := `\1&` + newName + `\2`
 
 	tag, err := r.pool.Exec(ctx,
 		`UPDATE blocks
 		 SET content = regexp_replace(content, $1, $2, 'g'),
 		     updated_at = NOW()
 		 WHERE content ~ $3`,
-		pattern, replacement, `(^|\s)#`+escapedOld+`(\s|$)`)
+		pattern, replacement, `(^|\s)&`+escapedOld+`(\s|$)`)
 	if err != nil {
 		return 0, fmt.Errorf("replace project in content: %w", err)
 	}

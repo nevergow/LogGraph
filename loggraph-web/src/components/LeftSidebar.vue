@@ -22,6 +22,50 @@ const pinned = ref(false)
 const hovering = ref(false)
 const searchQuery = ref('')
 
+// ── Node creation state ──
+const creatingNodeType = ref<'project' | 'person' | null>(null)
+const newNodeName = ref('')
+const newInputRef = ref<HTMLInputElement | null>(null)
+const creating = ref(false)
+
+async function createNode() {
+  const name = newNodeName.value.trim()
+  if (!name || creating.value) return
+  creating.value = true
+  try {
+    const type = creatingNodeType.value === 'person' ? 'person' : 'project'
+    await nodesApi.create(name, type)
+    newNodeName.value = ''
+    creatingNodeType.value = null
+    emit('node-updated')
+  } catch (e: any) {
+    console.error('Failed to create node:', e)
+  } finally {
+    creating.value = false
+  }
+}
+
+function startCreate(type: 'project' | 'person') {
+  creatingNodeType.value = type
+  newNodeName.value = ''
+  nextTick(() => newInputRef.value?.focus())
+}
+
+function cancelCreate() {
+  creatingNodeType.value = null
+  newNodeName.value = ''
+}
+
+function onCreateKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    createNode()
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    cancelCreate()
+  }
+}
+
 const isExpanded = computed(() => pinned.value || hovering.value)
 
 const filteredProjects = computed(() => {
@@ -255,6 +299,37 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
           <li v-if="filteredProjects.length === 0" class="px-3 py-3 text-xs text-text-muted italic">
             {{ searchQuery ? 'No matches' : 'No projects yet' }}
           </li>
+          <li class="px-3 py-1.5">
+            <div v-if="creatingNodeType === 'project'" class="flex items-center gap-2">
+              <input
+                ref="newInputRef"
+                v-model="newNodeName"
+                placeholder="Project name"
+                class="flex-1 min-w-0 text-xs border border-accent-300 rounded-lg px-2 py-1.5 outline-none bg-white"
+                @keydown="onCreateKeydown"
+                @blur="cancelCreate"
+              />
+              <button
+                class="p-1 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors disabled:opacity-30"
+                :disabled="!newNodeName.trim() || creating"
+                @mousedown.prevent="createNode"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </button>
+            </div>
+            <button
+              v-else
+              class="flex items-center gap-2 text-xs text-text-muted hover:text-accent-600 px-1 py-1.5 w-full rounded-lg hover:bg-accent-50 transition-colors"
+              @click="startCreate('project')"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Project</span>
+            </button>
+          </li>
         </ul>
 
         <!-- People -->
@@ -311,6 +386,37 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
           </li>
           <li v-if="filteredPeople.length === 0" class="px-3 py-3 text-xs text-text-muted italic">
             {{ searchQuery ? 'No matches' : 'No people yet' }}
+          </li>
+          <li class="px-3 py-1.5">
+            <div v-if="creatingNodeType === 'person'" class="flex items-center gap-2">
+              <input
+                ref="newInputRef"
+                v-model="newNodeName"
+                placeholder="Person name"
+                class="flex-1 min-w-0 text-xs border border-accent-300 rounded-lg px-2 py-1.5 outline-none bg-white"
+                @keydown="onCreateKeydown"
+                @blur="cancelCreate"
+              />
+              <button
+                class="p-1 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors disabled:opacity-30"
+                :disabled="!newNodeName.trim() || creating"
+                @mousedown.prevent="createNode"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </button>
+            </div>
+            <button
+              v-else
+              class="flex items-center gap-2 text-xs text-text-muted hover:text-accent-600 px-1 py-1.5 w-full rounded-lg hover:bg-accent-50 transition-colors"
+              @click="startCreate('person')"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Add Person</span>
+            </button>
           </li>
         </ul>
 
