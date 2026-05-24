@@ -1,10 +1,13 @@
 # LogGraph
 
-Your work memory, connected. A minimal team workflow tool combining a timeline log stream, knowledge graph, and AI-powered report generation.
+Your work memory, connected. A minimal team workflow tool combining a hierarchical log stream, knowledge graph, WYSIWYG editor, and AI-powered report generation.
 
-- **Timeline** — post log entries with `&project` / `@person` / `^reference` tags; sticky date label on scroll
-- **Work Log Association** — link related logs with `^uuid` references; follow-up button auto-completes parent log
-- **Project View** — drag-and-drop cards between projects, per-project quick-add buttons, Unfiled pool
+- **Timeline** — vertical log stream with `snap:proximity` scroll; sticky date label; focus mode dims unrelated cards on `^uuid` selection
+- **Work Log Association** — `^uuid` references build parent-child hierarchy with indent guides, collapse triangles, and follow-up buttons
+- **Project View** — drag-and-drop cards between projects; per-project quick-add; parent-child tree with 24px indent + color-coded guide lines
+- **Tag Capsule Rendering** — `&Project` (blue), `@Person` (green), `^uuid` (amber) display as colored chips in expanded card view
+- **Smart Input** — progressive editor: compact textarea for quick capture + expanded TipTap editor with formatting toolbar and slash commands (Text / Bullet List / Code Block / Blockquote / Divider)
+- **Cmd+K Command Palette** — full-text search across all log entries with instant results; click navigates to Timeline
 - **AI Reports** — LLM-generated project summaries with date-range filtering
 - **Webhook** — receive logs from external systems (Lark, custom)
 
@@ -133,11 +136,14 @@ Open `http://localhost:5173`.
 
 ## Usage
 
-- Type `#project @person ^reference` in the input — autocomplete triggers after each symbol
-- Click **< >** toggle (compact mode) or expand to full-editor for markdown formatting
-- Double-click a block to edit
+- Type `&project @person ^reference` in SmartInput — autocomplete triggers after each symbol
+- Click **expand icon** for the full TipTap editor with formatting toolbar (Bold, Italic, List, Code, Blockquote)
+- Type `/` at the start of a line in the expanded editor to open the slash command menu
+- Press `Cmd+K` (Mac) / `Ctrl+K` (Windows) to open the command palette and search log entries
+- Double-click a block to expand/collapse its content
 - Click the status badge (Active/Done/Blocked) to cycle states
-- Select a block to see its graph in the right panel
+- Click a `^uuid` reference then open the right panel to see the Thread view with dimmed focus mode
+- Select a block to see its knowledge graph in the right panel
 
 ## Database Schema
 

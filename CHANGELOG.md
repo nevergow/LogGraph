@@ -2,7 +2,36 @@
 
 All notable changes to LogGraph will be documented in this file.
 
-## [0.7.0] — 2026-05-24
+## [0.8.0] — 2026-05-24
+
+### Added
+
+- **Parent-child card hierarchy** — ProjectView parses `^uuid` references to build a childMap/parentMap; root blocks are separate; children display with 24px indent (desktop) / 12px indent (mobile), left color-coded guide line, and collapse triangle; mobile shows capsule buttons like "[+3 follow-ups]"
+- **Cross-status trace label** — child blocks reference their parent via `↩ 源于: [Active] parent-title` label with status-colored dot
+- **Timeline focus mode** — selecting a block dims all unrelated cards to `opacity: 0.3` with `pointer-events: none`; computed via `^uuid` scanning (finds referrers and referees); RightGraphPanel shows both Graph and Thread tabs
+- **RightGraphPanel dual mode** — Graph tab (existing knowledge graph) and Thread tab (compact BlockCard list of related blocks with status dots and timestamps); Esc key to close; bidirectional navigation
+- **Tag capsule rendering** — `&Project` renders as blue chip, `@Person` as green chip, `^uuid` as amber chip with hover effect; applied as a pre-processing step in `renderMarkdown` that protects code blocks and inline code; visible in expanded card view
+- **Slash command menu** — type `/` at the start of a line in the expanded TipTap editor to show a 5-option floating bar (Text, Bullet List, Code Block, Blockquote, Divider); arrow key navigation, mouse hover, Enter to select
+- **Cmd+K full-text search** — CommandPalette now queries `/api/v1/blocks?q=...` when 2+ characters are typed; displays results in a "Search Results" section with timestamps; clicking navigates to Timeline with scrollIntoView
+- **Mobile quick-actions drawer** — floating "Quick Actions" pill at the bottom of mobile viewport expands to show Project/Timeline view toggle, filter button, and search button; uses Z-axis overlay with `active:scale-95` feedback
+- **MobileDrawer component** — new component serving mobile Z-axis quick access layer
+
+### Changed
+
+- **SmartInput expanded mode** — toolbar simplified: removed Heading and Strikethrough buttons; modal backdrop overlay removed (non-modal floating panel); placeholder updated to `&project @person ^reference — Enter to send`
+- **Status color normalization** — Done status uses `slate-400` (gray) border + background; Active uses Electric Blue `#3B82F6`; Blocked uses Red `#DC2626`; `.block-done .prose` opacity raised from 0.4 to 0.6 for readability
+- **Mobile filter flow** — filter icon in mobile/tablet header now expands an inline chip panel directly (no intermediate overlay step); Transition animation for open/close
+- **README.md** — updated feature list and usage section to reflect v0.8 capabilities
+
+### Fixed
+
+- **BlockCard status colors** — moved from CSS cascade (vulnerable to `.card-surface` override) to inline `cardStyle` computed with explicit `borderLeftColor` per status
+- **ProjectView collapse logic** — separated `collapsedDesktop` and `expandedMobile` refs with `isChildrenVisible()` screen-size-aware check
+
+### Removed
+
+- **Expanded editor modal overlay** — `bg-black/20 backdrop-blur-sm` mask removed; editor now floats as a non-modal panel
+- **Heading and Strikethrough toolbar buttons** — removed from SmartInput expanded toolbar to align with Jobs review: "logs don't need multi-level headings"
 
 ### Added
 
