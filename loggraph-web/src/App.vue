@@ -473,6 +473,7 @@ function handleCommand(action: string) {
             :projects="projects"
             :people="people"
             :active-project="filters.project"
+            :screen-size="screenSize"
             @select-project="handleSelectProject"
             @select-person="handleSelectPerson"
             @clear-filters="setFilter('project', undefined); setFilter('person', undefined); showLeftOverlay = false"
