@@ -63,7 +63,6 @@ function navigateToProject(project: string) {
 // ── Responsive ──
 const screenSize = ref<'mobile' | 'tablet' | 'desktop'>('desktop')
 const showLeftOverlay = ref(false)
-const showMobileFilter = ref(false)
 const activeGraphBlockId = ref<string | null>(null)
 
 // Dimmed blocks: when a graph block is selected, all unrelated blocks get dimmed
@@ -276,24 +275,12 @@ function handleSelectBlock(id: string) {
         </button>
       </div>
       <div class="flex items-center gap-1">
-        <!-- Mobile: inline filter toggle (replaces sidebar overlay step) -->
-        <button
-          v-if="screenSize !== 'desktop'"
-          class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
-          :class="{ 'text-accent-600 bg-accent-50': showMobileFilter }"
-          @click="showMobileFilter = !showMobileFilter; showLeftOverlay = false"
-          title="Filters"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-          </svg>
-        </button>
-        <!-- Mobile: direct node management overlay access -->
+        <!-- Mobile: single entry point for filtering & node management -->
         <button
           v-if="screenSize !== 'desktop'"
           class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
           :class="{ 'text-accent-600 bg-accent-50': showLeftOverlay }"
-          @click="showLeftOverlay = !showLeftOverlay; showMobileFilter = false"
+          @click="showLeftOverlay = !showLeftOverlay"
           title="Projects & People"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,82 +354,6 @@ function handleSelectBlock(id: string) {
       <CalendarHeatmap />
     </div>
     <div v-if="showHeatmap" class="fixed inset-0 z-30" @click="showHeatmap = false" />
-
-    <!-- Mobile/Tablet inline filter panel (Phase 1: replaces sidebar overlay step) -->
-    <Transition name="fade">
-      <div
-        v-if="showMobileFilter && screenSize !== 'desktop'"
-        class="px-4 py-3 bg-white border-b border-slate-200 space-y-3"
-      >
-        <!-- Projects -->
-        <div>
-          <div class="text-[10px] text-text-muted uppercase tracking-wider mb-2 font-semibold">Projects</div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="p in projects"
-              :key="p.name"
-              class="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors border"
-              :class="filters.project === p.name
-                ? 'bg-accent-600 text-white border-accent-600'
-                : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
-              @click="setFilter('project', filters.project === p.name ? undefined : p.name); showMobileFilter = false"
-            >
-              {{ p.name }}
-            </button>
-            <button
-              v-if="filters.project"
-              class="text-xs px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
-              @click="setFilter('project', undefined); showMobileFilter = false"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-        <!-- People -->
-        <div>
-          <div class="text-[10px] text-text-muted uppercase tracking-wider mb-2 font-semibold">People</div>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="p in people"
-              :key="p.name"
-              class="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors border"
-              :class="filters.person === p.name
-                ? 'bg-accent-600 text-white border-accent-600'
-                : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
-              @click="setFilter('person', filters.person === p.name ? undefined : p.name); showMobileFilter = false"
-            >
-              {{ p.name }}
-            </button>
-            <button
-              v-if="filters.person"
-              class="text-xs px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
-              @click="setFilter('person', undefined); showMobileFilter = false"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-        <!-- Quick actions -->
-        <div class="flex items-center gap-2 pt-1 border-t border-border-subtle">
-          <button
-            class="text-xs font-medium text-accent-600 hover:text-accent-700 hover:bg-accent-50 transition-colors px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-            @click="showLeftOverlay = true; showMobileFilter = false"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Edit Projects & People
-          </button>
-          <button
-            v-if="hasActiveFilter"
-            class="text-xs text-danger hover:bg-danger-light transition-colors px-2 py-1 rounded-lg"
-            @click="clearAllFilters(); showMobileFilter = false"
-          >
-            Clear all filters
-          </button>
-        </div>
-      </div>
-    </Transition>
 
     <!-- Main content area -->
     <div class="flex-1 flex overflow-hidden">
@@ -673,6 +584,62 @@ function handleSelectBlock(id: string) {
           <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-elevated overflow-y-auto rounded-r-2xl">
             <div class="flex justify-end p-3">
               <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showLeftOverlay = false">&times;</button>
+            </div>
+            <!-- Quick-filter chips -->
+            <div class="px-4 pb-3 space-y-2.5 border-b border-border-subtle">
+              <div>
+                <div class="text-[10px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">Projects</div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="p in projects"
+                    :key="p.name"
+                    class="text-xs px-2.5 py-1 rounded-xl font-medium transition-colors border"
+                    :class="filters.project === p.name
+                      ? 'bg-accent-600 text-white border-accent-600'
+                      : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
+                    @click="setFilter('project', filters.project === p.name ? undefined : p.name); showLeftOverlay = false"
+                  >
+                    {{ p.name }}
+                  </button>
+                  <button
+                    v-if="filters.project"
+                    class="text-xs px-2.5 py-1 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
+                    @click="setFilter('project', undefined); showLeftOverlay = false"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div class="text-[10px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">People</div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button
+                    v-for="p in people"
+                    :key="p.name"
+                    class="text-xs px-2.5 py-1 rounded-xl font-medium transition-colors border"
+                    :class="filters.person === p.name
+                      ? 'bg-accent-600 text-white border-accent-600'
+                      : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
+                    @click="setFilter('person', filters.person === p.name ? undefined : p.name); showLeftOverlay = false"
+                  >
+                    {{ p.name }}
+                  </button>
+                  <button
+                    v-if="filters.person"
+                    class="text-xs px-2.5 py-1 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
+                    @click="setFilter('person', undefined); showLeftOverlay = false"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <button
+                v-if="hasActiveFilter"
+                class="text-xs text-danger hover:bg-danger-light transition-colors px-2 py-1 rounded-lg w-full text-left"
+                @click="clearAllFilters(); showLeftOverlay = false"
+              >
+                Clear all filters
+              </button>
             </div>
             <LeftSidebar
               :projects="projects"
