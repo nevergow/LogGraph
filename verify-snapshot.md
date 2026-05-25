@@ -1,0 +1,92 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e11]: LogGraph
+      - generic [ref=e12]:
+        - button "Projects" [ref=e13]
+        - button "Timeline" [ref=e14]
+    - button "More" [ref=e17]:
+      - img [ref=e18]
+  - generic [ref=e20]:
+    - complementary [ref=e21]:
+      - button "Pin sidebar" [ref=e23]:
+        - img [ref=e24]
+      - generic [ref=e26]:
+        - button "Projects" [ref=e27]:
+          - img [ref=e28]
+        - button "People" [ref=e30]:
+          - img [ref=e31]
+    - main [ref=e34]:
+      - generic [ref=e35]:
+        - generic [ref=e36] [cursor=pointer]:
+          - checkbox "Hide done" [ref=e37]
+          - generic [ref=e38]: Hide done
+        - generic [ref=e39]: "10"
+        - combobox [ref=e41]:
+          - option "All status" [selected]
+          - option "Active"
+          - option "Completed"
+          - option "Blocked"
+        - textbox "From date" [ref=e43]
+        - generic [ref=e44]: "-"
+        - textbox "To date" [ref=e45]
+      - generic [ref=e48]:
+        - generic [ref=e49] [cursor=pointer]:
+          - generic [ref=e50]:
+            - img [ref=e52]
+            - generic [ref=e54]:
+              - text: LogGraph
+              - generic [ref=e56]: 10 Done
+          - button [ref=e58]:
+            - img [ref=e59]
+        - generic [ref=e61]:
+          - generic [ref=e64] [cursor=pointer]:
+            - generic [ref=e65]: "&LogGraph #LogGraph @Neil 修复5个UI问题：三点菜单grain noise z-index从9999→1、删除优先级象限、侧栏pin按钮、blocked卡红色区分、双击展开详情。TS零错误。"
+            - img [ref=e66]
+          - generic [ref=e70] [cursor=pointer]:
+            - generic [ref=e71]: "&LogGraph #LogGraph @Neil 修复5个UI问题：三点菜单grain noise z-index从9999降为1消除遮挡、删除优先级象限Q1-Q4按钮、侧栏折叠按钮替换为pin按钮（pinned/hover展开逻辑）、blocked卡片增加红色左边框+淡红背景区分active状态、卡片改为单击选中+双击展开详情。TypeScript零错误。"
+            - img [ref=e72]
+          - generic [ref=e76] [cursor=pointer]:
+            - generic [ref=e77]: "&LogGraph @Neil 完成 LogGraph v3 改进计划 Phase 0-3 实施：设计基线（Electric Blue + Geist字体 + 三层深度系统）、4个Bug修复（节点重命名冲突检查、三点菜单blur遮挡、useNodes单例、Graph移除）、&Name语法替换#Name、拖拽卡片分配项目、项目组底部加号、卡片follow-up按钮、^引用搜索增强、时间轴sticky日期标签。Go后端和TypeScript编译均零错误。"
+            - img [ref=e78]
+          - generic [ref=e82] [cursor=pointer]:
+            - generic [ref=e83]: 后端
+            - img [ref=e84]
+          - generic [ref=e88] [cursor=pointer]:
+            - generic [ref=e89]: The Card — BlockCard 视觉信号精简完成
+            - img [ref=e90]
+          - generic [ref=e94] [cursor=pointer]:
+            - generic [ref=e95]: The Canvas — 布局精简完成
+            - img [ref=e96]
+          - generic [ref=e100] [cursor=pointer]:
+            - generic [ref=e101]: The Grid — 设计基础统一下完成
+            - img [ref=e102]
+          - generic [ref=e106] [cursor=pointer]:
+            - generic [ref=e107]: "&LogGraph #LogGraph 改造 @AIAgent Phase 3 完成：移动端左滑删除优化（阈值80→45px，红色区域更早显示），桌面端三杠More菜单（编辑/归档/删除下拉项，点击外部自动关闭），Project视图路由修复（点击项目仅设置筛选不强制跳转Timeline）。"
+            - img [ref=e108]
+          - generic [ref=e112] [cursor=pointer]:
+            - generic [ref=e113]: "&LogGraph #LogGraph 改造 @AIAgent Phase 2 完成：四象限优先级下拉（Q1紧急重要/Q2紧急不重要/Q3不紧急重要/Q4不紧急不重要，默认Q3），项目下拉选择（接入后端Nodes接口），TipTap WYSIWYG编辑器（替换纯文本Markdown输入，支持实时格式渲染），全屏编辑模式，工具栏按钮重写为TipTap命令驱动。"
+            - img [ref=e114]
+          - generic [ref=e118] [cursor=pointer]:
+            - generic [ref=e119]: "&LogGraph #LogGraph 改造 @AIAgent Phase 1 完成：全局侧边栏 — 将 LeftSidebar 提升至全局布局，在 Project View 和 Timeline View 下均可见，支持折叠/展开（图标窄条模式），桌面端/平板端均适配。"
+            - img [ref=e120]
+          - button "Add to LogGraph" [ref=e122]:
+            - img [ref=e123]
+            - text: Add to LogGraph
+  - generic [ref=e126]:
+    - button "Expand editor" [ref=e127]:
+      - img [ref=e128]
+    - textbox "&project @person ^reference — Enter to send" [ref=e130]
+    - combobox [ref=e131]:
+      - option "No project" [selected]
+      - option "LogGraph"
+      - option "Name、拖拽卡片分配项目、项目组底部加号、卡片follow-up按钮、"
+      - 'option "newName\\2`"'
+      - 'option "oldName(\\s|$)`"'
+      - option "v0"
+      - option "v1 2"
+      - option "新名称"
+      - option "旧名称"
+      - option "项目Alpha"
+    - button "Send" [disabled] [ref=e132]

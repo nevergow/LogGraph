@@ -208,15 +208,21 @@ body::after {
 /* Mobile overlay transitions */
 .overlay-enter-active,
 .overlay-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.overlay-enter-active aside,
+.overlay-leave-active aside {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .overlay-enter-from,
 .overlay-leave-to {
   opacity: 0;
 }
-.overlay-enter-from aside,
+.overlay-enter-from aside {
+  transform: translateX(-100%);
+}
 .overlay-leave-to aside {
-  transform: translateX(-16px);
+  transform: translateX(-100%);
 }
 
 /* Done status */

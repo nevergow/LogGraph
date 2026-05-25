@@ -246,6 +246,10 @@ watch(text, async (val) => {
     try {
       const type = suggestType.value === 'person' ? 'person' : undefined
       suggestItems.value = await nodesApi.suggest(query, type)
+      // If no exact match, offer to create a new project/person
+      if (query && !suggestItems.value.some((it: any) => it.name === query)) {
+        suggestItems.value.push({ id: '__create__', name: query, type: suggestType.value, _create: true } as any)
+      }
       showSuggest.value = suggestItems.value.length > 0
     } catch { showSuggest.value = false }
   }
@@ -280,7 +284,18 @@ function onKeydown(e: KeyboardEvent) {
 
 // ── Apply suggestion ──
 
-function applySuggestion(item: any) {
+async function applySuggestion(item: any) {
+  // Handle "Create new project/person" action
+  if (item._create) {
+    try {
+      const nodeType = suggestType.value === 'person' ? 'person' : 'project'
+      await nodesApi.create(item.name, nodeType)
+      await fetchProjects()
+    } catch {
+      // If creation fails, just insert the text as-is without a capsule
+    }
+  }
+
   const before = text.value.slice(0, triggerPos.value)
   const ta = textareaRef.value!
   const pos = ta.selectionStart
@@ -407,9 +422,15 @@ onUnmounted(() => {
         @click="applySuggestion(item)"
         @mouseenter="suggestIndex = i"
       >
-        <span class="text-xs text-accent-500 w-5 shrink-0 font-mono font-semibold">{{ triggerChar }}</span>
-        <span class="truncate text-text-primary text-sm">{{ item.name }}</span>
-        <span v-if="item.type !== 'custom'" class="text-[10px] text-text-muted ml-auto uppercase tracking-wide">{{ item.type }}</span>
+        <template v-if="item._create">
+          <span class="text-xs text-green-600 w-5 shrink-0 font-mono font-bold">+</span>
+          <span class="truncate text-text-primary text-sm">Create "{{ item.name }}"</span>
+        </template>
+        <template v-else>
+          <span class="text-xs text-accent-500 w-5 shrink-0 font-mono font-semibold">{{ triggerChar }}</span>
+          <span class="truncate text-text-primary text-sm">{{ item.name }}</span>
+          <span v-if="item.type !== 'custom'" class="text-[10px] text-text-muted ml-auto uppercase tracking-wide">{{ item.type }}</span>
+        </template>
       </div>
       <div v-if="suggestItems.length === 0" class="px-4 py-3 text-xs text-text-muted italic">
         No matches

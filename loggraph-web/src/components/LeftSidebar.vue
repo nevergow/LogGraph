@@ -8,6 +8,7 @@ const props = defineProps<{
   people: Node[]
   activeProject?: string
   screenSize?: 'mobile' | 'tablet' | 'desktop'
+  overlay?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -66,7 +67,7 @@ function onCreateKeydown(e: KeyboardEvent) {
   }
 }
 
-const isExpanded = computed(() => pinned.value || hovering.value)
+const isExpanded = computed(() => props.overlay || pinned.value || hovering.value)
 
 const filteredProjects = computed(() => {
   if (!searchQuery.value) return props.projects
@@ -158,16 +159,21 @@ async function doDelete(id: string) {
 const isDesktop = computed(() => props.screenSize === 'desktop')
 
 function handleItemClick(nodeId: string, name: string, type: 'project' | 'person') {
-  if (isDesktop.value) {
+  if (isDesktop.value || props.overlay) {
     if (type === 'project') {
       emit('select-project', name)
     } else {
       emit('select-person', name)
     }
   } else {
-    // On mobile/tablet, toggle selection to show action buttons
+    // On mobile/tablet inline sidebar, toggle selection to show action buttons
     activeNodeId.value = activeNodeId.value === nodeId ? null : nodeId
   }
+}
+
+function handleItemActions(e: Event, nodeId: string) {
+  e.stopPropagation()
+  activeNodeId.value = activeNodeId.value === nodeId ? null : nodeId
 }
 </script>
 
@@ -178,8 +184,8 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
     @mouseenter="hovering = true"
     @mouseleave="hovering = false"
   >
-    <!-- Pin toggle -->
-    <div class="p-3 border-b border-border-subtle flex" :class="!isExpanded ? 'justify-center' : 'justify-between items-center'">
+    <!-- Pin toggle (hidden in overlay mode) -->
+    <div v-if="!overlay" class="p-3 border-b border-border-subtle flex" :class="!isExpanded ? 'justify-center' : 'justify-between items-center'">
       <button
         v-if="isExpanded && activeProject"
         class="text-[10px] text-accent-600 hover:text-accent-800 bg-accent-50 hover:bg-accent-100 px-3 py-1 rounded-full transition-colors font-medium border border-accent-200/50"
@@ -266,33 +272,57 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
               @blur="saveEdit(p.id)"
             />
             <span v-else class="truncate">{{ p.name }}</span>
-            <!-- Mobile tap actions / Desktop hover actions -->
+            <!-- Actions: overlay mode shows filter arrow + ⋯ toggle; desktop hover; mobile tap -->
             <div
               v-if="editingNodeId !== p.id"
               class="flex items-center gap-1 shrink-0 ml-auto"
               :class="[
-                isDesktop ? 'hidden group-hover:flex' : (activeNodeId === p.id ? 'flex' : 'hidden')
+                overlay
+                  ? 'flex'
+                  : (isDesktop ? 'hidden group-hover:flex' : (activeNodeId === p.id ? 'flex' : 'hidden'))
               ]"
               @click.stop
             >
               <button
+                v-if="overlay"
                 class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
-                title="Rename"
-                @click.stop="startEdit(p)"
+                title="Filter"
+                @click.stop="emit('select-project', p.name)"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
               <button
-                class="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger-light transition-colors"
-                title="Delete"
-                @click.stop="confirmDelete(p)"
+                v-if="overlay"
+                class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
+                title="Actions"
+                @click.stop="handleItemActions($event, p.id)"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
               </button>
+              <template v-if="activeNodeId === p.id || !overlay">
+                <button
+                  class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
+                  title="Rename"
+                  @click.stop="startEdit(p)"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  class="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger-light transition-colors"
+                  title="Delete"
+                  @click.stop="confirmDelete(p)"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </template>
             </div>
           </li>
           <li v-if="filteredProjects.length === 0" class="px-3 py-3 text-xs text-text-muted italic">
@@ -354,33 +384,57 @@ function handleItemClick(nodeId: string, name: string, type: 'project' | 'person
               @blur="saveEdit(p.id)"
             />
             <span v-else class="truncate">{{ p.name }}</span>
-            <!-- Mobile tap actions / Desktop hover actions -->
+            <!-- Actions: overlay mode shows filter arrow + ⋯ toggle; desktop hover; mobile tap -->
             <div
               v-if="editingNodeId !== p.id"
               class="flex items-center gap-1 shrink-0 ml-auto"
               :class="[
-                isDesktop ? 'hidden group-hover:flex' : (activeNodeId === p.id ? 'flex' : 'hidden')
+                overlay
+                  ? 'flex'
+                  : (isDesktop ? 'hidden group-hover:flex' : (activeNodeId === p.id ? 'flex' : 'hidden'))
               ]"
               @click.stop
             >
               <button
+                v-if="overlay"
                 class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
-                title="Rename"
-                @click.stop="startEdit(p)"
+                title="Filter"
+                @click.stop="emit('select-person', p.name)"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
               <button
-                class="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger-light transition-colors"
-                title="Delete"
-                @click.stop="confirmDelete(p)"
+                v-if="overlay"
+                class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
+                title="Actions"
+                @click.stop="handleItemActions($event, p.id)"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                 </svg>
               </button>
+              <template v-if="activeNodeId === p.id || !overlay">
+                <button
+                  class="p-1.5 rounded-lg text-text-muted hover:text-accent-600 hover:bg-accent-50 transition-colors"
+                  title="Rename"
+                  @click.stop="startEdit(p)"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  class="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger-light transition-colors"
+                  title="Delete"
+                  @click.stop="confirmDelete(p)"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </template>
             </div>
           </li>
           <li v-if="filteredPeople.length === 0" class="px-3 py-3 text-xs text-text-muted italic">

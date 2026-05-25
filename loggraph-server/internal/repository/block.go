@@ -17,7 +17,8 @@ type BlockRepo struct{ pool *pgxpool.Pool }
 
 func NewBlockRepo(pool *pgxpool.Pool) *BlockRepo { return &BlockRepo{pool: pool} }
 
-// Create inserts a block and all derived nodes/relations in a single transaction.
+// Create inserts a block and all derived relations in a single transaction.
+// Only links nodes that already exist — does not auto-create.
 func (r *BlockRepo) Create(ctx context.Context, input model.CreateBlockInput) (*model.Block, error) {
 	parsed := parser.Parse(input.Content)
 
@@ -38,21 +39,15 @@ func (r *BlockRepo) Create(ctx context.Context, input model.CreateBlockInput) (*
 		return nil, fmt.Errorf("insert block: %w", err)
 	}
 
-	// Upsert project nodes from &tags
+	// Link existing project nodes from &tags (only if node already exists)
 	for _, name := range parsed.Tags {
-		if err := r.upsertNode(ctx, tx, name, model.NodeTypeProject); err != nil {
-			return nil, err
-		}
 		if err := r.insertRelation(ctx, tx, block.ID, "node", name, model.NodeTypeProject, model.RelationMentions); err != nil {
 			return nil, err
 		}
 	}
 
-	// Upsert person nodes from @mentions
+	// Link existing person nodes from @mentions (only if node already exists)
 	for _, name := range parsed.Mentions {
-		if err := r.upsertNode(ctx, tx, name, model.NodeTypePerson); err != nil {
-			return nil, err
-		}
 		if err := r.insertRelation(ctx, tx, block.ID, "node", name, model.NodeTypePerson, model.RelationMentions); err != nil {
 			return nil, err
 		}
@@ -93,22 +88,16 @@ func (r *BlockRepo) Update(ctx context.Context, id string, input model.UpdateBlo
 			return nil, fmt.Errorf("update block: %w", err)
 		}
 
-		// Rebuild relations from parsed content
+		// Rebuild relations from parsed content (only links existing nodes)
 		if _, err := tx.Exec(ctx, `DELETE FROM relations WHERE source_id=$1`, id); err != nil {
 			return nil, fmt.Errorf("delete old relations: %w", err)
 		}
 		for _, name := range parsed.Tags {
-			if err := r.upsertNode(ctx, tx, name, model.NodeTypeProject); err != nil {
-				return nil, err
-			}
 			if err := r.insertRelation(ctx, tx, block.ID, "node", name, model.NodeTypeProject, model.RelationMentions); err != nil {
 				return nil, err
 			}
 		}
 		for _, name := range parsed.Mentions {
-			if err := r.upsertNode(ctx, tx, name, model.NodeTypePerson); err != nil {
-				return nil, err
-			}
 			if err := r.insertRelation(ctx, tx, block.ID, "node", name, model.NodeTypePerson, model.RelationMentions); err != nil {
 				return nil, err
 			}
@@ -288,13 +277,6 @@ func escapeRegex(s string) string {
 }
 
 // ── helpers ──
-
-func (r *BlockRepo) upsertNode(ctx context.Context, tx pgx.Tx, name string, nodeType model.NodeType) error {
-	_, err := tx.Exec(ctx,
-		`INSERT INTO nodes (name, type) VALUES ($1, $2)
-		 ON CONFLICT (name, type) DO NOTHING`, name, string(nodeType))
-	return err
-}
 
 func (r *BlockRepo) insertRelation(ctx context.Context, tx pgx.Tx, sourceID, targetType, nodeName string, nodeType model.NodeType, relType model.RelationType) error {
 	_, err := tx.Exec(ctx,

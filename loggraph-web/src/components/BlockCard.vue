@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [id: string]
   'toggle-status': [id: string, current: string]
+  'set-status': [id: string, status: string]
   archive: [id: string]
   delete: [id: string]
   'request-edit': [id: string]
@@ -25,12 +26,20 @@ const emit = defineEmits<{
 
 const viewMode = ref<'compact' | 'expanded'>('compact')
 const showMoreMenu = ref(false)
+const showStatusDropdown = ref(false)
 const moreMenuButtonEl = ref<HTMLElement | null>(null)
+const statusBadgeEl = ref<HTMLElement | null>(null)
 
 const moreMenuPosition = computed(() => {
   if (!moreMenuButtonEl.value) return { right: '16px', top: '60px' }
   const rect = moreMenuButtonEl.value.getBoundingClientRect()
   return { right: `${window.innerWidth - rect.right}px`, top: `${rect.bottom + 4}px` }
+})
+
+const statusDropdownPosition = computed(() => {
+  if (!statusBadgeEl.value) return { left: '0px', top: '28px' }
+  const rect = statusBadgeEl.value.getBoundingClientRect()
+  return { left: `${rect.left}px`, top: `${rect.bottom + 4}px` }
 })
 
 function toggleMoreMenu(el?: HTMLElement) {
@@ -40,8 +49,22 @@ function toggleMoreMenu(el?: HTMLElement) {
 function closeMoreMenu() {
   showMoreMenu.value = false
 }
+function toggleStatusDropdown(el?: HTMLElement) {
+  statusBadgeEl.value = el || statusBadgeEl.value
+  showStatusDropdown.value = !showStatusDropdown.value
+}
+function closeStatusDropdown() {
+  showStatusDropdown.value = false
+}
+function setStatus(target: string) {
+  closeStatusDropdown()
+  if (target !== props.block.status) {
+    emit('set-status', props.block.id, target)
+  }
+}
 function onDocumentClick() {
   if (showMoreMenu.value) showMoreMenu.value = false
+  if (showStatusDropdown.value) showStatusDropdown.value = false
 }
 
 onMounted(() => {
@@ -262,13 +285,28 @@ function onDragStart(e: DragEvent) {
                 Edit
               </button>
               <button
-                class="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-success-light hover:text-success transition-colors flex items-center gap-3"
-                @click="emit('toggle-status', block.id, block.status); closeMoreMenu()"
+                class="w-full text-left px-4 py-2.5 text-sm text-accent-700 hover:bg-accent-50 transition-colors flex items-center gap-3"
+                :class="{ 'font-bold': block.status === 'active' }"
+                @click="setStatus('active'); closeMoreMenu()"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                </svg>
-                {{ block.status === 'completed' ? 'Reopen' : 'Complete' }}
+                <span class="w-2 h-2 rounded-full bg-accent-500" />
+                Active
+              </button>
+              <button
+                class="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-3"
+                :class="{ 'font-bold': block.status === 'completed' }"
+                @click="setStatus('completed'); closeMoreMenu()"
+              >
+                <span class="w-2 h-2 rounded-full bg-slate-400" />
+                Done
+              </button>
+              <button
+                class="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition-colors flex items-center gap-3"
+                :class="{ 'font-bold': block.status === 'blocked' }"
+                @click="setStatus('blocked'); closeMoreMenu()"
+              >
+                <span class="w-2 h-2 rounded-full bg-red-500" />
+                Blocked
               </button>
               <div class="border-t border-border-subtle my-2" />
               <button
@@ -288,16 +326,68 @@ function onDragStart(e: DragEvent) {
       <!-- ── Compact mode ── -->
       <div v-if="viewMode === 'compact'">
         <div class="flex items-center gap-2">
-          <button
-            class="shrink-0 w-2.5 h-2.5 rounded-full border-2 border-white transition-colors hover:scale-125"
-            :class="{
-              'bg-accent-500': block.status === 'active',
-              'bg-slate-400': block.status === 'completed',
-              'bg-danger': block.status === 'blocked',
-            }"
-            :title="`Status: ${block.status} — click to cycle`"
-            @click.stop="emit('toggle-status', block.id, block.status)"
-          />
+          <!-- Status badge with dropdown -->
+          <div class="relative shrink-0" @click.stop>
+            <button
+              ref="statusBadgeEl"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors hover:shadow-sm"
+              :class="{
+                'bg-accent-50 text-accent-700 border-accent-200': block.status === 'active',
+                'bg-slate-100 text-slate-600 border-slate-200': block.status === 'completed',
+                'bg-red-50 text-red-700 border-red-200': block.status === 'blocked',
+              }"
+              @click="screenSize === 'mobile' ? emit('toggle-status', block.id, block.status) : toggleStatusDropdown($el as HTMLElement)"
+            >
+              <span
+                class="w-1.5 h-1.5 rounded-full"
+                :class="{
+                  'bg-accent-500': block.status === 'active',
+                  'bg-slate-400': block.status === 'completed',
+                  'bg-red-500': block.status === 'blocked',
+                }"
+              />
+              {{ block.status === 'active' ? 'Active' : block.status === 'completed' ? 'Done' : 'Blocked' }}
+            </button>
+            <!-- Status dropdown -->
+            <Teleport to="body">
+              <div
+                v-if="showStatusDropdown"
+                class="fixed inset-0 z-[60]"
+                @click="closeStatusDropdown"
+              />
+              <div
+                v-if="showStatusDropdown"
+                class="fixed z-[70] mt-1 bg-white border border-slate-200 rounded-xl shadow-elevated py-1.5 min-w-[130px]"
+                :style="statusDropdownPosition"
+                @click.stop
+              >
+                <button
+                  class="w-full text-left px-3 py-2 text-xs font-medium text-accent-700 hover:bg-accent-50 transition-colors flex items-center gap-2"
+                  :class="{ 'bg-accent-50': block.status === 'active' }"
+                  @click="setStatus('active')"
+                >
+                  <span class="w-2 h-2 rounded-full bg-accent-500" />
+                  Active
+                </button>
+                <button
+                  class="w-full text-left px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  :class="{ 'bg-slate-50': block.status === 'completed' }"
+                  @click="setStatus('completed')"
+                >
+                  <span class="w-2 h-2 rounded-full bg-slate-400" />
+                  Done
+                </button>
+                <button
+                  class="w-full text-left px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors flex items-center gap-2"
+                  :class="{ 'bg-red-50': block.status === 'blocked' }"
+                  @click="setStatus('blocked')"
+                >
+                  <span class="w-2 h-2 rounded-full bg-red-500" />
+                  Blocked
+                </button>
+              </div>
+            </Teleport>
+          </div>
           <span class="text-sm text-text-primary truncate flex-1 font-medium" :class="{ 'text-text-muted line-through': block.status === 'completed' }">{{ extractTitle(block.content, props.knownProjects, props.knownPeople) }}</span>
           <button
             class="shrink-0 p-1 rounded-lg hover:bg-surface-100 text-text-muted hover:text-text-primary transition-colors"

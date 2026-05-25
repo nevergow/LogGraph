@@ -169,6 +169,10 @@ async function handleToggleStatus(id: string, current: string) {
   await updateBlock(id, { status: next })
 }
 
+async function handleSetStatus(id: string, status: string) {
+  await updateBlock(id, { status })
+}
+
 function handleArchive(id: string) {
   archiveBlock(id)
   showToast('已归档 1 条日志')
@@ -277,11 +281,23 @@ function handleSelectBlock(id: string) {
           v-if="screenSize !== 'desktop'"
           class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
           :class="{ 'text-accent-600 bg-accent-50': showMobileFilter }"
-          @click="showMobileFilter = !showMobileFilter"
-          title="Filters & Projects"
+          @click="showMobileFilter = !showMobileFilter; showLeftOverlay = false"
+          title="Filters"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+        </button>
+        <!-- Mobile: direct node management overlay access -->
+        <button
+          v-if="screenSize !== 'desktop'"
+          class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
+          :class="{ 'text-accent-600 bg-accent-50': showLeftOverlay }"
+          @click="showLeftOverlay = !showLeftOverlay; showMobileFilter = false"
+          title="Projects & People"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
         </button>
 
@@ -409,10 +425,13 @@ function handleSelectBlock(id: string) {
         <!-- Quick actions -->
         <div class="flex items-center gap-2 pt-1 border-t border-border-subtle">
           <button
-            class="text-xs text-text-muted hover:text-text-primary transition-colors px-2 py-1"
+            class="text-xs font-medium text-accent-600 hover:text-accent-700 hover:bg-accent-50 transition-colors px-3 py-1.5 rounded-lg flex items-center gap-1.5"
             @click="showLeftOverlay = true; showMobileFilter = false"
           >
-            Manage nodes...
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit Projects & People
           </button>
           <button
             v-if="hasActiveFilter"
@@ -459,6 +478,7 @@ function handleSelectBlock(id: string) {
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
+          @set-status="handleSetStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
@@ -485,6 +505,7 @@ function handleSelectBlock(id: string) {
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
+          @set-status="handleSetStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
@@ -532,6 +553,7 @@ function handleSelectBlock(id: string) {
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
+          @set-status="handleSetStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
@@ -558,6 +580,7 @@ function handleSelectBlock(id: string) {
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
+          @set-status="handleSetStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
@@ -592,6 +615,7 @@ function handleSelectBlock(id: string) {
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
+          @set-status="handleSetStatus"
           @navigate-to-project="navigateToProject"
           @archive="handleArchive"
           @delete="handleDelete"
@@ -618,6 +642,7 @@ function handleSelectBlock(id: string) {
           @load-more="loadMore"
           @select="id => selectedBlockId = id"
           @toggle-status="handleToggleStatus"
+          @set-status="handleSetStatus"
           @filter-change="(key: string, value: string | undefined) => setFilter(key as any, value)"
           @archive="handleArchive"
           @delete="handleDelete"
@@ -639,28 +664,31 @@ function handleSelectBlock(id: string) {
     <!-- Mobile/Tablet overlays -->
     <Teleport to="body">
       <!-- Left panel overlay -->
-      <div
-        v-if="showLeftOverlay"
-        class="fixed inset-0 z-50"
-      >
-        <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showLeftOverlay = false" />
-        <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-elevated overflow-y-auto rounded-r-2xl">
-          <div class="flex justify-end p-3">
-            <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showLeftOverlay = false">&times;</button>
-          </div>
-          <LeftSidebar
-            :projects="projects"
-            :people="people"
-            :active-project="filters.project"
-            :screen-size="screenSize"
-            @select-project="handleSelectProject"
-            @select-person="handleSelectPerson"
-            @clear-filters="setFilter('project', undefined); setFilter('person', undefined); showLeftOverlay = false"
-            @node-updated="fetchProjects(); fetchPeople()"
-            @node-deleted="fetchProjects(); fetchPeople()"
-          />
-        </aside>
-      </div>
+      <Transition name="overlay">
+        <div
+          v-if="showLeftOverlay"
+          class="fixed inset-0 z-50"
+        >
+          <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showLeftOverlay = false" />
+          <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-elevated overflow-y-auto rounded-r-2xl">
+            <div class="flex justify-end p-3">
+              <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showLeftOverlay = false">&times;</button>
+            </div>
+            <LeftSidebar
+              :projects="projects"
+              :people="people"
+              :active-project="filters.project"
+              :screen-size="screenSize"
+              :overlay="true"
+              @select-project="handleSelectProject"
+              @select-person="handleSelectPerson"
+              @clear-filters="setFilter('project', undefined); setFilter('person', undefined); showLeftOverlay = false"
+              @node-updated="fetchProjects(); fetchPeople()"
+              @node-deleted="fetchProjects(); fetchPeople()"
+            />
+          </aside>
+        </div>
+      </Transition>
     </Teleport>
 
     <ToastContainer />

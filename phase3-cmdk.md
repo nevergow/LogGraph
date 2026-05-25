@@ -1,0 +1,146 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - img [ref=e7]
+        - generic [ref=e11]: LogGraph
+        - generic [ref=e12]:
+          - button "Projects" [ref=e13]
+          - button "Timeline" [ref=e14]
+      - button "More" [ref=e17]:
+        - img [ref=e18]
+    - generic [ref=e20]:
+      - complementary [ref=e21]:
+        - button "Pin sidebar" [ref=e23]:
+          - img [ref=e24]
+        - generic [ref=e284]:
+          - button "Projects" [ref=e285]:
+            - img [ref=e286]
+          - button "People" [ref=e288]:
+            - img [ref=e289]
+      - main [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36] [cursor=pointer]:
+            - checkbox "Hide done" [ref=e37]
+            - generic [ref=e38]: Hide done
+          - generic [ref=e39]: "14"
+          - combobox [ref=e41]:
+            - option "All status" [selected]
+            - option "Active"
+            - option "Completed"
+            - option "Blocked"
+          - textbox "From date" [ref=e43]
+          - generic [ref=e44]: "-"
+          - textbox "To date" [ref=e45]
+        - generic [ref=e78]:
+          - generic [ref=e79] [cursor=pointer]:
+            - generic [ref=e80]:
+              - img [ref=e82]
+              - generic [ref=e84]:
+                - text: LogGraph
+                - generic [ref=e85]:
+                  - generic [ref=e86]: 3 Active
+                  - generic [ref=e88]: 10 Done
+                  - generic [ref=e90]: 1 Blocked
+            - button [ref=e92]:
+              - img [ref=e93]
+          - generic [ref=e95]:
+            - generic [ref=e99] [cursor=pointer]:
+              - button "More actions" [ref=e219]:
+                - img [ref=e220]
+              - paragraph [ref=e227]:
+                - generic [ref=e228]: "&LogGraph"
+                - generic [ref=e229]: "@Neil"
+                - text: Phase 2 完成：Project View父子层级（^uuid引用解析→childMap/parentMap计算→rootBlocks分离→桌面端24px缩进+彩色引导线+三角折叠、移动端12px缩进+默认折叠+胶囊按钮[+N条跟进]+跨状态↩溯源标签）。Timeline主副联动（RightGraphPanel挂载+Graph/Thread双Tab+dimmedBlockIds降噪0.3透明度+pointer-events防误触+Esc关闭+双向导航）。TypeScript零错误。
+              - generic [ref=e230]:
+                - generic [ref=e231]:
+                  - button "Edit" [ref=e232]
+                  - button "Collapse" [ref=e233]
+                  - button "Connections" [ref=e234]
+                - button "Follow-up" [ref=e235]:
+                  - img [ref=e236]
+                  - generic [ref=e238]: Follow-up
+            - generic [ref=e104]:
+              - generic [ref=e105]:
+                - button [ref=e106]:
+                  - img [ref=e107]
+                - generic [ref=e109]: 1 follow-up
+              - generic [ref=e113] [cursor=pointer]:
+                - generic [ref=e114]: "&LogGraph @Neil Phase 1 完成：状态色彩规范（Done灰色slate-400、Active电光蓝不变、Blocked红色不变）——修改BlockCard.vue cardStyle、CenterTimeline.vue nodeColor、ProjectView.vue Done徽章、style.css opacity 0.4→0.6。移动端筛选简化：FilterBar图标改为inline展开面板（Transition动画），项目/人员chip按钮直接选择，无需overlay中间步骤。"
+                - img [ref=e115]
+            - generic [ref=e122] [cursor=pointer]:
+              - generic [ref=e123]: "&LogGraph &LogGraph @Neil Phase 1 follow-up test: verified status colors and mobile filter work ^2419d94c-6913-4c85-9e0b-92f264f4b07d"
+              - img [ref=e124]
+            - generic [ref=e130] [cursor=pointer]:
+              - generic [ref=e131]: "&LogGraph &LogGraph Test blocked card"
+              - img [ref=e132]
+            - generic [ref=e138] [cursor=pointer]:
+              - generic [ref=e139]: "&LogGraph #LogGraph @Neil 修复5个UI问题：三点菜单grain noise z-index从9999→1、删除优先级象限、侧栏pin按钮、blocked卡红色区分、双击展开详情。TS零错误。"
+              - img [ref=e140]
+            - generic [ref=e146] [cursor=pointer]:
+              - generic [ref=e147]: "&LogGraph #LogGraph @Neil 修复5个UI问题：三点菜单grain noise z-index从9999降为1消除遮挡、删除优先级象限Q1-Q4按钮、侧栏折叠按钮替换为pin按钮（pinned/hover展开逻辑）、blocked卡片增加红色左边框+淡红背景区分active状态、卡片改为单击选中+双击展开详情。TypeScript零错误。"
+              - img [ref=e148]
+            - generic [ref=e154] [cursor=pointer]:
+              - generic [ref=e155]: "&LogGraph @Neil 完成 LogGraph v3 改进计划 Phase 0-3 实施：设计基线（Electric Blue + Geist字体 + 三层深度系统）、4个Bug修复（节点重命名冲突检查、三点菜单blur遮挡、useNodes单例、Graph移除）、&Name语法替换#Name、拖拽卡片分配项目、项目组底部加号、卡片follow-up按钮、^引用搜索增强、时间轴sticky日期标签。Go后端和TypeScript编译均零错误。"
+              - img [ref=e156]
+            - generic [ref=e162] [cursor=pointer]:
+              - generic [ref=e163]: 后端
+              - img [ref=e164]
+            - generic [ref=e170] [cursor=pointer]:
+              - generic [ref=e171]: The Card — BlockCard 视觉信号精简完成
+              - img [ref=e172]
+            - generic [ref=e178] [cursor=pointer]:
+              - generic [ref=e179]: The Canvas — 布局精简完成
+              - img [ref=e180]
+            - generic [ref=e186] [cursor=pointer]:
+              - generic [ref=e187]: The Grid — 设计基础统一下完成
+              - img [ref=e188]
+            - generic [ref=e194] [cursor=pointer]:
+              - generic [ref=e195]: "&LogGraph #LogGraph 改造 @AIAgent Phase 3 完成：移动端左滑删除优化（阈值80→45px，红色区域更早显示），桌面端三杠More菜单（编辑/归档/删除下拉项，点击外部自动关闭），Project视图路由修复（点击项目仅设置筛选不强制跳转Timeline）。"
+              - img [ref=e196]
+            - generic [ref=e202] [cursor=pointer]:
+              - generic [ref=e203]: "&LogGraph #LogGraph 改造 @AIAgent Phase 2 完成：四象限优先级下拉（Q1紧急重要/Q2紧急不重要/Q3不紧急重要/Q4不紧急不重要，默认Q3），项目下拉选择（接入后端Nodes接口），TipTap WYSIWYG编辑器（替换纯文本Markdown输入，支持实时格式渲染），全屏编辑模式，工具栏按钮重写为TipTap命令驱动。"
+              - img [ref=e204]
+            - generic [ref=e210] [cursor=pointer]:
+              - generic [ref=e211]: "&LogGraph #LogGraph 改造 @AIAgent Phase 1 完成：全局侧边栏 — 将 LeftSidebar 提升至全局布局，在 Project View 和 Timeline View 下均可见，支持折叠/展开（图标窄条模式），桌面端/平板端均适配。"
+              - img [ref=e212]
+            - button "Add to LogGraph" [ref=e214]:
+              - img [ref=e215]
+              - text: Add to LogGraph
+    - generic [ref=e302]:
+      - button "Expand editor" [ref=e303]:
+        - img [ref=e304]
+      - textbox "&project @person ^reference — Enter to send" [ref=e306]
+      - combobox [ref=e307]:
+        - option "No project" [selected]
+        - option "LogGraph"
+      - button "Send" [disabled] [ref=e308]
+  - generic [ref=e311]:
+    - generic [ref=e312]:
+      - img [ref=e313]
+      - textbox "Search commands or log entries..." [active] [ref=e315]
+      - generic [ref=e316]: esc
+    - generic [ref=e317]:
+      - generic [ref=e318]: Commands
+      - generic [ref=e319] [cursor=pointer]:
+        - generic [ref=e320]: Go to Project View
+        - generic [ref=e321]: Navigation
+      - generic [ref=e322] [cursor=pointer]:
+        - generic [ref=e323]: Go to Timeline View
+        - generic [ref=e324]: Navigation
+      - generic [ref=e325] [cursor=pointer]:
+        - generic [ref=e326]: Open Knowledge Graph
+        - generic [ref=e327]: Panels
+      - generic [ref=e328] [cursor=pointer]:
+        - generic [ref=e329]: AI Report
+        - generic [ref=e330]: Panels
+      - generic [ref=e331] [cursor=pointer]:
+        - generic [ref=e332]: Webhook Settings
+        - generic [ref=e333]: Panels
+      - generic [ref=e334] [cursor=pointer]:
+        - generic [ref=e335]: Clear All Filters
+        - generic [ref=e336]: Actions
+      - generic [ref=e337] [cursor=pointer]:
+        - generic [ref=e338]: New Log Entry
+        - generic [ref=e339]: Actions
+      - generic [ref=e340]: Type to search commands, or enter 2+ characters to search log entries

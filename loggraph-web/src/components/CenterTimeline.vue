@@ -27,6 +27,7 @@ const emit = defineEmits<{
   'load-more': []
   select: [id: string]
   'toggle-status': [id: string, current: string]
+  'set-status': [id: string, status: string]
   'filter-change': [key: string, value: string | undefined]
   archive: [id: string]
   delete: [id: string]
@@ -229,6 +230,7 @@ function onTimelineScroll() {
               :known-people="knownPersonNames"
               @select="id => emit('select', id)"
               @toggle-status="(id, current) => emit('toggle-status', id, current)"
+              @set-status="(id, status) => emit('set-status', id, status)"
               @archive="id => emit('archive', id)"
               @delete="id => emit('delete', id)"
               @request-edit="id => emit('request-edit', id)"
