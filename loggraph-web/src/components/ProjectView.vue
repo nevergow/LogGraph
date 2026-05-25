@@ -148,7 +148,8 @@ interface ProjectGroup {
 const projectGroups = computed<ProjectGroup[]>(() => {
   const map = new Map<string, Block[]>()
   for (const b of filteredBlocks.value) {
-    const match = b.content.match(/(?:^|\s)[&]([^\s&][^\s]*)/)
+    let match = b.content.match(/(?:^|\s)&([^\s&][^\s]*)/)
+    if (!match) match = b.content.match(/(?:^|\s)#([^\s#][^\s]*)/)
     const project = match ? match[1] : 'Unfiled'
     if (!map.has(project)) map.set(project, [])
     map.get(project)!.push(b)

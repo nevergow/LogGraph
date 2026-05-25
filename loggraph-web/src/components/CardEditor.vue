@@ -26,7 +26,7 @@ watch(() => props.block, (b) => {
 
 const projectTag = computed(() => {
   if (!props.block) return ''
-  const m = props.block.content.match(/(?:^|\s)#([^\s#][^\s]*)/)
+  const m = props.block.content.match(/(?:^|\s)[#&]([^\s#&][^\s]*)/)
   return m ? m[1] : ''
 })
 
@@ -87,7 +87,7 @@ function onKeydown(e: KeyboardEvent) {
                 class="inline-flex items-center gap-1 text-[10px] bg-brand-50 text-brand-600 px-2.5 py-1 rounded-full font-semibold"
               >
                 <span class="w-1 h-1 rounded-full bg-brand-500" />
-                #{{ projectTag }}
+                &amp;{{ projectTag }}
               </div>
               <span class="text-[11px] text-text-muted">{{ wordCount }} words</span>
             </div>

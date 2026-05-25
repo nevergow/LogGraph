@@ -67,8 +67,8 @@ const compactTags = computed(() => {
   const content = props.block.content
   const knownP = props.knownProjects
   const knownPe = props.knownPeople
-  // Find &Project tags — only if known
-  const projectRe = /(?:^|\s)&([^\s&][^\s]*?)(?=\s|$)/g
+  // Find &/ #Project tags — only if known
+  const projectRe = /(?:^|\s)[#&]([^\s#&][^\s]*?)(?=\s|$)/g
   let m: RegExpExecArray | null
   while ((m = projectRe.exec(content)) !== null) {
     if (!knownP || knownP.has(m[1])) {

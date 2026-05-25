@@ -32,7 +32,8 @@ export function stripBindingTags(text: string, knownProjects?: Set<string>, know
     const names = [...knownProjects].sort((a, b) => b.length - a.length)
     if (names.length > 0) {
       const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      const projectRe = new RegExp(`(^|\\s)&(${escaped.join('|')})(?=\\s|$)`, 'g')
+      // Strip #Name (backward compat) and &Name for known projects
+      const projectRe = new RegExp(`(^|\\s)[#&](${escaped.join('|')})(?=\\s|$)`, 'g')
       result = result.replace(projectRe, '$1')
     }
   }
@@ -60,7 +61,12 @@ function capsulizeTags(text: string, knownProjects?: Set<string>, knownPeople?: 
     return `\x00CODE${codeBlocks.length - 1}\x00`
   })
 
-  // Only capsulize &Name if known project (or if no known list, always capsulize)
+  // Capsulize #Name as &Name for known projects (backward compat)
+  processed = processed.replace(/(^|\s)#([^\s#<>]+)/g, (match, before, name) => {
+    if (knownProjects && !knownProjects.has(name)) return match
+    return `${before}<span class="tag-capsule tag-project">&amp;${name}</span>`
+  })
+  // Capsulize &Name if known project (or if no known list, always capsulize)
   processed = processed.replace(/(^|\s)&([^\s&<>]+)/g, (match, before, name) => {
     if (knownProjects && !knownProjects.has(name)) return match
     return `${before}<span class="tag-capsule tag-project">&amp;${name}</span>`

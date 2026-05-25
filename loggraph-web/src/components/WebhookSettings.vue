@@ -91,7 +91,7 @@ function copyToClipboard(text: string) {
           <pre class="text-[11px] text-gray-600 overflow-x-auto leading-relaxed"><code>curl -X POST {{ baseURL }}/api/v1/webhook/logs \
   -H "Authorization: Bearer &lt;token&gt;" \
   -H "Content-Type: application/json" \
-  -d '{"content": "#项目A 测试通过","user_id": "ci"}'</code></pre>
+  -d '{"content": "&项目A 测试通过","user_id": "ci"}'</code></pre>
         </div>
 
         <!-- Lark webhook hint -->
