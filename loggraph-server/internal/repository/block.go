@@ -276,10 +276,49 @@ func escapeRegex(s string) string {
 	return s
 }
 
+// BackfillRelationsForNode scans existing blocks for matching &name / #name / @name
+// text and creates relations. Call after manually creating a node so existing
+// blocks that already mention this node get linked.
+func (r *BlockRepo) BackfillRelationsForNode(ctx context.Context, nodeName string, nodeType model.NodeType) (int64, error) {
+	escaped := escapeRegex(nodeName)
+	var pattern string
+	if nodeType == model.NodeTypePerson {
+		pattern = `(^|\s)@` + escaped + `(\s|$)`
+	} else {
+		pattern = `(^|\s)(&|#)` + escaped + `(\s|$)`
+	}
+
+	relType := string(model.RelationMentions)
+
+	tag, err := r.pool.Exec(ctx,
+		`INSERT INTO relations (source_type, source_id, target_type, target_id, relation_type)
+		 SELECT 'block', b.id, 'node', n.id, $1
+		 FROM blocks b, nodes n
+		 WHERE n.name = $2 AND n.type = $3
+		   AND b.content ~ $4
+		   AND NOT EXISTS (
+		     SELECT 1 FROM relations r
+		     WHERE r.source_id = b.id AND r.target_id = n.id AND r.relation_type = $5
+		   )`,
+		relType, nodeName, string(nodeType), pattern, relType)
+	if err != nil {
+		return 0, fmt.Errorf("backfill relations for node: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
 // ── helpers ──
 
 func (r *BlockRepo) insertRelation(ctx context.Context, tx pgx.Tx, sourceID, targetType, nodeName string, nodeType model.NodeType, relType model.RelationType) error {
+	// Auto-create node if it doesn't exist, so &NewProject in content
+	// creates both the node and the relation in a single operation.
 	_, err := tx.Exec(ctx,
+		`INSERT INTO nodes (name, type) VALUES ($1, $2) ON CONFLICT (name, type) DO NOTHING`,
+		nodeName, string(nodeType))
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx,
 		`INSERT INTO relations (source_type, source_id, target_type, target_id, relation_type)
 		 SELECT 'block', $1, $2, id, $3 FROM nodes WHERE name=$4 AND type=$5`,
 		sourceID, targetType, string(relType), nodeName, string(nodeType))

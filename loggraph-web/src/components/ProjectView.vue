@@ -151,7 +151,10 @@ const projectGroups = computed<ProjectGroup[]>(() => {
   for (const b of filteredBlocks.value) {
     let match = b.content.match(/(?:^|\s)&([^\s&][^\s]*)/)
     if (!match) match = b.content.match(/(?:^|\s)#([^\s#][^\s]*)/)
-    const project = match ? match[1] : 'Unfiled'
+    let project = 'Unfiled'
+    if (match && knownProjectNames.value.has(match[1])) {
+      project = match[1]
+    }
     if (!map.has(project)) map.set(project, [])
     map.get(project)!.push(b)
   }

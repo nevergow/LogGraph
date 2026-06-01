@@ -83,6 +83,10 @@ func (h *NodeHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// Retroactively bind existing blocks that already mention this node
+	_, _ = h.blockRepo.BackfillRelationsForNode(r.Context(), input.Name, input.Type)
+
 	writeJSON(w, http.StatusCreated, node)
 }
 
