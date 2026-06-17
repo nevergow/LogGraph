@@ -29,6 +29,8 @@ const selectedProject = ref<string>('')
 // ── Progressive input state ──
 const isExpanded = ref(false)
 const isFullscreen = ref(false)
+const isFocused = ref(false)
+const charCount = ref(0)
 
 // ── TipTap editor ──
 const editor = useEditor({
@@ -87,9 +89,23 @@ function expand() {
   nextTick(() => {
     if (editor.value) {
       editor.value.commands.setContent(text.value || '')
-      editor.value.commands.focus()
+      editor.value.commands.focus('end')
     }
   })
+}
+
+function onCompactFocus() {
+  isFocused.value = true
+}
+
+function onCompactBlur() {
+  isFocused.value = false
+}
+
+function onCompactClick() {
+  if (text.value.trim() || props.prefillContent) {
+    expand()
+  }
 }
 
 function collapse() {
@@ -120,6 +136,15 @@ function tipTapBlockquote() { editor.value?.chain().focus().toggleBlockquote().r
 function tipTapInsertTag(ch: string) {
   editor.value?.chain().focus().insertContent(ch).run()
 }
+
+// ── Auto-expand on content length ──
+watch(text, (val) => {
+  charCount.value = val.length
+  // Auto-expand when typing long content (> 80 chars) in compact mode
+  if (!isExpanded.value && val.length > 80 && !showSuggest.value) {
+    expand()
+  }
+})
 
 // ── Slash menu ──
 const showSlashMenu = ref(false)
