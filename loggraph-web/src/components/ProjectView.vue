@@ -78,19 +78,6 @@ const childMap = computed(() => {
   return map
 })
 
-// Parent lookup: child id → parent block (for cross-status trace)
-const parentMap = computed(() => {
-  const map = new Map<string, Block>()
-  for (const b of filteredBlocks.value) {
-    const parentId = extractParentId(b.content)
-    if (parentId) {
-      const parent = filteredBlocks.value.find(p => p.id === parentId)
-      if (parent) map.set(b.id, parent)
-    }
-  }
-  return map
-})
-
 // Set of block IDs that are children (to filter out from root list)
 const childIds = computed(() => {
   const ids = new Set<string>()
@@ -193,8 +180,8 @@ async function onDrop(e: DragEvent, toProject: string) {
   e.preventDefault()
   dragOverProject.value = null
   const blockId = e.dataTransfer?.getData('application/x-block-id')
-  const fromProject = e.dataTransfer?.getData('application/x-from-project')
-  if (!blockId || fromProject === toProject) return
+  const fromProject = e.dataTransfer?.getData('application/x-from-project') || ''
+  if (!blockId || !fromProject || fromProject === toProject) return
 
   const block = props.blocks.find(b => b.id === blockId)
   if (!block) return

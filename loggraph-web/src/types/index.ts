@@ -4,6 +4,7 @@ export interface Block {
   content: string
   status: 'active' | 'completed' | 'blocked'
   metadata?: Record<string, any>
+  referenced_by?: string[]
   created_at: string
   updated_at: string
 }

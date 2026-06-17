@@ -6,7 +6,6 @@ import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
-import type { Node } from '../types'
 
 const props = defineProps<{
   screenSize?: 'mobile' | 'tablet' | 'desktop'
