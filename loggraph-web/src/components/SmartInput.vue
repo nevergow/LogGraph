@@ -595,6 +595,9 @@ onUnmounted(() => {
               <option value="">No project</option>
               <option v-for="p in projects" :key="p.name" :value="p.name">{{ p.name }}</option>
             </select>
+            <span class="text-[10px] text-text-muted font-medium">
+              {{ charCount }} chars
+            </span>
           </div>
           <button
             class="px-6 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold"
