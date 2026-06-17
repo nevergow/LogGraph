@@ -465,8 +465,8 @@ onUnmounted(() => {
     <!-- ── Compact mode ── -->
     <div v-if="!isExpanded" class="flex items-center gap-3">
       <button
-        class="shrink-0 text-text-muted hover:text-accent-600 hover:bg-accent-50 p-2 rounded-lg transition-colors flex items-center justify-center"
-        :class="{ 'min-w-[44px] min-h-[44px]': screenSize === 'mobile' }"
+        class="shrink-0 text-text-muted hover:text-accent-600 hover:bg-accent-50 p-2 rounded-lg transition-all flex items-center justify-center"
+        :class="{ 'min-w-[44px] min-h-[44px]': screenSize === 'mobile', 'bg-accent-50 text-accent-600': isFocused }"
         @click="expand"
         title="Expand editor"
       >
@@ -480,8 +480,15 @@ onUnmounted(() => {
         v-model="text"
         rows="1"
         placeholder="&project @person ^reference — Enter to send"
-        class="flex-1 resize-none outline-none text-sm py-3 px-5 bg-gradient-to-r from-surface-100 to-surface-50 rounded-2xl border-0 focus:bg-white focus:ring-2 focus:ring-accent-200/50 transition-all placeholder:text-text-muted"
-        :class="{ 'min-h-[44px]': screenSize === 'mobile' }"
+        class="flex-1 resize-none outline-none text-sm py-3 px-5 rounded-2xl border-0 transition-all placeholder:text-text-muted"
+        :class="{
+          'min-h-[44px]': screenSize === 'mobile',
+          'bg-white ring-2 ring-accent-200/50 shadow-sm': isFocused,
+          'bg-gradient-to-r from-surface-100 to-surface-50': !isFocused
+        }"
+        @focus="onCompactFocus"
+        @blur="onCompactBlur"
+        @click="onCompactClick"
         @click="trackCursor"
         @keyup="trackCursor"
         @select="trackCursor"
