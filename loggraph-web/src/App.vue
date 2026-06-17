@@ -56,6 +56,21 @@ function handleEditorClose() {
 const showHeaderMenu = ref(false)
 const showHeatmap = ref(false)
 
+// ── Dark mode ──
+const isDark = ref(false)
+function initDarkMode() {
+  const saved = localStorage.getItem('loggraph:dark')
+  if (saved === 'true') {
+    isDark.value = true
+    document.documentElement.classList.add('dark')
+  }
+}
+function toggleDarkMode() {
+  isDark.value = !isDark.value
+  localStorage.setItem('loggraph:dark', String(isDark.value))
+  document.documentElement.classList.toggle('dark', isDark.value)
+}
+
 function navigateToProject(project: string) {
   setFilter('project', project)
 }
@@ -134,6 +149,7 @@ function onDocumentClick() {
 }
 
 onMounted(() => {
+  initDarkMode()
   updateScreenSize()
   window.addEventListener('resize', updateScreenSize)
   document.addEventListener('click', onDocumentClick)
@@ -275,6 +291,20 @@ function handleSelectBlock(id: string) {
         </button>
       </div>
       <div class="flex items-center gap-1">
+        <!-- Dark mode toggle -->
+        <button
+          class="text-xs text-text-secondary hover:text-accent-600 hover:bg-accent-50 transition-colors flex items-center gap-1 px-3 py-2 rounded-lg"
+          @click="toggleDarkMode"
+          :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+        >
+          <svg v-if="isDark" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+
         <!-- Mobile: single entry point for filtering & node management -->
         <button
           v-if="screenSize !== 'desktop'"
@@ -574,85 +604,93 @@ function handleSelectBlock(id: string) {
 
     <!-- Mobile/Tablet overlays -->
     <Teleport to="body">
-      <!-- Left panel overlay -->
-      <Transition name="overlay">
+      <!-- Filter / sidebar overlay: bottom sheet on mobile/tablet -->
+      <Transition name="drawer">
         <div
           v-if="showLeftOverlay"
           class="fixed inset-0 z-50"
         >
-          <div class="absolute inset-0 bg-black/20 backdrop-blur-sm" @click="showLeftOverlay = false" />
-          <aside class="relative w-80 max-w-[85vw] bg-white/95 backdrop-blur-md h-full shadow-elevated overflow-y-auto rounded-r-2xl">
-            <div class="flex justify-end p-3">
+          <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" @click="showLeftOverlay = false" />
+          <aside
+            class="absolute left-0 right-0 bottom-0 bg-white/95 backdrop-blur-md shadow-elevated overflow-y-auto rounded-t-2xl max-h-[85vh] flex flex-col"
+            :class="screenSize === 'tablet' ? 'sm:left-auto sm:right-0 sm:top-0 sm:bottom-0 sm:max-h-none sm:w-80 sm:rounded-l-2xl sm:rounded-tr-none' : ''"
+          >
+            <div class="sticky top-0 bg-white/95 backdrop-blur-md z-10 px-4 py-3 border-b border-border-subtle flex items-center justify-between">
+              <span class="text-sm font-semibold text-text-primary">Filters &amp; Nodes</span>
               <button class="text-text-muted hover:text-text-primary text-lg leading-none p-2 rounded-xl hover:bg-surface-100 transition-colors" @click="showLeftOverlay = false">&times;</button>
             </div>
-            <!-- Quick-filter chips -->
-            <div class="px-4 pb-3 space-y-2.5 border-b border-border-subtle">
-              <div>
-                <div class="text-[10px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">Projects</div>
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="p in projects"
-                    :key="p.name"
-                    class="text-xs px-2.5 py-1 rounded-xl font-medium transition-colors border"
-                    :class="filters.project === p.name
-                      ? 'bg-accent-600 text-white border-accent-600'
-                      : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
-                    @click="setFilter('project', filters.project === p.name ? undefined : p.name); showLeftOverlay = false"
-                  >
-                    {{ p.name }}
-                  </button>
-                  <button
-                    v-if="filters.project"
-                    class="text-xs px-2.5 py-1 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
-                    @click="setFilter('project', undefined); showLeftOverlay = false"
-                  >
-                    Clear
-                  </button>
+            <div class="p-4 overflow-y-auto">
+              <!-- Quick-filter chips -->
+              <div class="space-y-4 pb-4 border-b border-border-subtle">
+                <div>
+                  <div class="text-[10px] text-text-muted uppercase tracking-wider mb-2 font-semibold">Projects</div>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="p in projects"
+                      :key="p.name"
+                      class="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors border"
+                      :class="filters.project === p.name
+                        ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
+                        : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
+                      @click="setFilter('project', filters.project === p.name ? undefined : p.name); showLeftOverlay = false"
+                    >
+                      {{ p.name }}
+                    </button>
+                    <button
+                      v-if="filters.project"
+                      class="text-xs px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
+                      @click="setFilter('project', undefined); showLeftOverlay = false"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div class="text-[10px] text-text-muted uppercase tracking-wider mb-1.5 font-semibold">People</div>
-                <div class="flex flex-wrap gap-1.5">
-                  <button
-                    v-for="p in people"
-                    :key="p.name"
-                    class="text-xs px-2.5 py-1 rounded-xl font-medium transition-colors border"
-                    :class="filters.person === p.name
-                      ? 'bg-accent-600 text-white border-accent-600'
-                      : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
-                    @click="setFilter('person', filters.person === p.name ? undefined : p.name); showLeftOverlay = false"
-                  >
-                    {{ p.name }}
-                  </button>
-                  <button
-                    v-if="filters.person"
-                    class="text-xs px-2.5 py-1 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
-                    @click="setFilter('person', undefined); showLeftOverlay = false"
-                  >
-                    Clear
-                  </button>
+                <div>
+                  <div class="text-[10px] text-text-muted uppercase tracking-wider mb-2 font-semibold">People</div>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="p in people"
+                      :key="p.name"
+                      class="text-xs px-3 py-1.5 rounded-xl font-medium transition-colors border"
+                      :class="filters.person === p.name
+                        ? 'bg-accent-600 text-white border-accent-600 shadow-sm'
+                        : 'bg-surface-100 text-text-secondary border-border-light hover:bg-accent-50 hover:text-accent-600'"
+                      @click="setFilter('person', filters.person === p.name ? undefined : p.name); showLeftOverlay = false"
+                    >
+                      {{ p.name }}
+                    </button>
+                    <button
+                      v-if="filters.person"
+                      class="text-xs px-3 py-1.5 rounded-xl font-medium bg-slate-100 text-text-muted border border-border-light hover:bg-slate-200 transition-colors"
+                      @click="setFilter('person', undefined); showLeftOverlay = false"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
+                <button
+                  v-if="hasActiveFilter"
+                  class="text-xs text-danger hover:bg-danger-light transition-colors px-3 py-2 rounded-lg w-full text-left"
+                  @click="clearAllFilters(); showLeftOverlay = false"
+                >
+                  Clear all filters
+                </button>
               </div>
-              <button
-                v-if="hasActiveFilter"
-                class="text-xs text-danger hover:bg-danger-light transition-colors px-2 py-1 rounded-lg w-full text-left"
-                @click="clearAllFilters(); showLeftOverlay = false"
-              >
-                Clear all filters
-              </button>
+              <div class="pt-4">
+                <LeftSidebar
+                  :projects="projects"
+                  :people="people"
+                  :active-project="filters.project"
+                  :screen-size="screenSize"
+                  :overlay="true"
+                  @select-project="handleSelectProject"
+                  @select-person="handleSelectPerson"
+                  @clear-filters="setFilter('project', undefined); setFilter('person', undefined); showLeftOverlay = false"
+                  @node-updated="fetchProjects(); fetchPeople()"
+                  @node-deleted="fetchProjects(); fetchPeople()"
+                />
+              </div>
             </div>
-            <LeftSidebar
-              :projects="projects"
-              :people="people"
-              :active-project="filters.project"
-              :screen-size="screenSize"
-              :overlay="true"
-              @select-project="handleSelectProject"
-              @select-person="handleSelectPerson"
-              @clear-filters="setFilter('project', undefined); setFilter('person', undefined); showLeftOverlay = false"
-              @node-updated="fetchProjects(); fetchPeople()"
-              @node-deleted="fetchProjects(); fetchPeople()"
-            />
           </aside>
         </div>
       </Transition>

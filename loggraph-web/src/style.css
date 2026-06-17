@@ -91,6 +91,118 @@ html, body, #app {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* === Dark Mode === */
+.dark,
+html:has(.dark) body,
+body.dark {
+  --color-surface-canvas: #0f172a;
+  --color-surface-card: #1e293b;
+  --color-surface-chrome: rgba(15, 23, 42, 0.92);
+  --color-surface-100: #1e293b;
+  --color-surface-50: #0f172a;
+
+  --color-border-subtle: #1e293b;
+  --color-border-light: #334155;
+
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+
+  --color-accent-50: #1e293b;
+  --color-accent-100: #1e3a5f;
+  --color-accent-200: #1e40af;
+  --color-accent-600: #60a5fa;
+  --color-accent-700: #93bbfd;
+
+  --color-success-light: #064e3b;
+  --color-danger-light: #450a0a;
+
+  --shadow-elevated: 0 4px 16px -8px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 2px 12px -6px rgba(0, 0, 0, 0.4);
+
+  background: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+}
+
+.dark .bg-white,
+.dark .bg-white\/92,
+.dark .bg-white\/95 {
+  background-color: var(--color-surface-card);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dark .card-surface {
+  background: var(--color-surface-card);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark .bg-surface-100 {
+  background-color: var(--color-surface-100);
+}
+
+.dark .border-slate-200,
+.dark .border-slate-100 {
+  border-color: var(--color-border-light);
+}
+
+.dark .text-text-primary {
+  color: var(--color-text-primary);
+}
+.dark .text-text-secondary {
+  color: var(--color-text-secondary);
+}
+.dark .text-text-muted {
+  color: var(--color-text-muted);
+}
+
+.dark .hover\:bg-surface-100:hover {
+  background-color: var(--color-surface-100);
+}
+.dark .hover\:bg-accent-50:hover {
+  background-color: var(--color-accent-50);
+}
+
+.dark .from-surface-100 {
+  --tw-gradient-from: var(--color-surface-100);
+}
+.dark .to-surface-50 {
+  --tw-gradient-to: var(--color-surface-50);
+}
+
+.dark .bg-accent-50 {
+  background-color: var(--color-accent-50);
+}
+.dark .text-accent-600 {
+  color: var(--color-accent-600);
+}
+.dark .text-accent-700 {
+  color: var(--color-accent-700);
+}
+
+.dark .prose {
+  color: var(--color-text-primary);
+}
+
+.dark .bg-blue-50\/80 {
+  background-color: rgba(30, 58, 138, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.dark .vue-flow__background {
+  background-color: #0f172a;
+}
+
 /* === Grain noise overlay (Layer 0 — Canvas) === */
 body::after {
   content: '';
@@ -223,6 +335,32 @@ body::after {
 }
 .overlay-leave-to aside {
   transform: translateX(-100%);
+}
+
+/* Drawer (bottom sheet) transitions */
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.drawer-enter-active aside,
+.drawer-leave-active aside {
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+.drawer-enter-from aside {
+  transform: translateY(100%);
+}
+.drawer-leave-to aside {
+  transform: translateY(100%);
+}
+@media (min-width: 640px) {
+  .drawer-enter-from aside,
+  .drawer-leave-to aside {
+    transform: translateX(100%);
+  }
 }
 
 /* Done status */
@@ -359,4 +497,92 @@ body::after {
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* === Micro-interactions === */
+
+/* Subtle press down on interaction */
+.btn-press:active {
+  transform: scale(0.97);
+  transition: transform 0.1s ease;
+}
+
+/* Selected card pulse */
+.card-selected {
+  animation: selectedPulse 2s ease-in-out infinite;
+}
+@keyframes selectedPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.15); }
+  50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+}
+
+.dark .card-selected {
+  animation: selectedPulseDark 2s ease-in-out infinite;
+}
+@keyframes selectedPulseDark {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(96, 165, 250, 0); }
+}
+
+/* Smooth scale on hover for interactive elements */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
+}
+
+/* Tab indicator slide */
+.tab-underline {
+  position: relative;
+}
+.tab-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 100%;
+  height: 2px;
+  background: var(--color-accent-500);
+  border-radius: 2px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tab-underline:hover::after,
+.tab-underline.active::after {
+  transform: translateX(-50%) scaleX(1);
+}
+
+/* Skeleton shimmer improvement */
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+/* Button ripple effect (simple CSS approximation) */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.btn-ripple:active::after {
+  opacity: 1;
+  transition: opacity 0s;
+}
+
+/* Focus ring animation */
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: 2px;
+  border-radius: 4px;
 }

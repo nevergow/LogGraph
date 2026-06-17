@@ -27,8 +27,16 @@ const emit = defineEmits<{
 const viewMode = ref<'compact' | 'expanded'>('compact')
 const showMoreMenu = ref(false)
 const showStatusDropdown = ref(false)
+const showHoverPreview = ref(false)
+const hoverTimeout = ref<ReturnType<typeof setTimeout> | null>(null)
 const moreMenuButtonEl = ref<HTMLElement | null>(null)
 const statusBadgeEl = ref<HTMLElement | null>(null)
+
+const previewText = computed(() => {
+  const max = 120
+  const cleaned = props.block.content.replace(/[@#&^]\S+/g, '').trim()
+  return cleaned.length > max ? cleaned.slice(0, max) + '...' : cleaned
+})
 
 const moreMenuPosition = computed(() => {
   if (!moreMenuButtonEl.value) return { right: '16px', top: '60px' }
@@ -70,8 +78,22 @@ function onDocumentClick() {
 onMounted(() => {
   document.addEventListener('click', onDocumentClick)
 })
+function onMouseEnter() {
+  if (props.screenSize === 'mobile' || viewMode.value === 'expanded') return
+  if (hoverTimeout.value) clearTimeout(hoverTimeout.value)
+  hoverTimeout.value = setTimeout(() => {
+    showHoverPreview.value = true
+  }, 400)
+}
+
+function onMouseLeave() {
+  if (hoverTimeout.value) clearTimeout(hoverTimeout.value)
+  showHoverPreview.value = false
+}
+
 onUnmounted(() => {
   document.removeEventListener('click', onDocumentClick)
+  if (hoverTimeout.value) clearTimeout(hoverTimeout.value)
 })
 
 function renderContent(text: string): string {
@@ -204,14 +226,27 @@ function onDragStart(e: DragEvent) {
 
 <template>
   <div
-    class="group relative rounded-xl"
+    class="group relative rounded-xl card-lift"
     :class="{ 'cursor-grab active:cursor-grabbing': draggable }"
     :draggable="draggable"
     @dragstart="onDragStart"
     @touchstart.passive="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
   >
+    <!-- Hover preview tooltip (desktop compact only) -->
+    <Transition name="preview-fade">
+      <div
+        v-if="showHoverPreview && previewText"
+        class="hidden lg:block absolute bottom-full left-0 mb-2 z-30 w-80 p-3 bg-white border border-slate-200 rounded-xl shadow-elevated pointer-events-none"
+      >
+        <div class="text-xs text-text-muted mb-1 font-medium">Preview</div>
+        <div class="text-xs text-text-primary leading-relaxed line-clamp-4">{{ previewText }}</div>
+        <div class="absolute bottom-[-6px] left-6 w-3 h-3 bg-white border-b border-r border-slate-200 rotate-45" />
+      </div>
+    </Transition>
     <!-- Swipe action backgrounds (mobile only) -->
     <div v-if="screenSize === 'mobile'" class="absolute inset-0 flex">
       <div
@@ -234,7 +269,7 @@ function onDragStart(e: DragEvent) {
       :class="{
         'block-dimmed': dimmed,
         'block-related': hasRelations,
-        'bg-blue-50/80': selected,
+        'bg-blue-50/80 card-selected': selected,
         'block-done': block.status === 'completed',
         'block-done-transition': true,
         'p-4': viewMode !== 'compact',
@@ -388,13 +423,16 @@ function onDragStart(e: DragEvent) {
               </div>
             </Teleport>
           </div>
-          <span class="text-sm text-text-primary truncate flex-1 font-medium" :class="{ 'text-text-muted line-through': block.status === 'completed' }">{{ extractTitle(block.content, props.knownProjects, props.knownPeople) }}</span>
+          <span
+            class="text-sm text-text-primary truncate flex-1 font-medium transition-colors"
+            :class="{ 'text-text-muted line-through': block.status === 'completed', 'group-hover:text-accent-700': block.status !== 'completed' }"
+          >{{ extractTitle(block.content, props.knownProjects, props.knownPeople) }}</span>
           <button
-            class="shrink-0 p-1 rounded-lg hover:bg-surface-100 text-text-muted hover:text-text-primary transition-colors"
+            class="shrink-0 p-1.5 rounded-lg hover:bg-accent-50 text-text-muted hover:text-accent-600 transition-all opacity-0 group-hover:opacity-100"
             title="Expand"
             @click.stop="viewMode = 'expanded'"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
@@ -465,3 +503,15 @@ function onDragStart(e: DragEvent) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.preview-fade-enter-active,
+.preview-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.preview-fade-enter-from,
+.preview-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+</style>

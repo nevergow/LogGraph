@@ -103,6 +103,7 @@ function onCompactBlur() {
 }
 
 function onCompactClick() {
+  trackCursor()
   if (text.value.trim() || props.prefillContent) {
     expand()
   }
@@ -488,7 +489,7 @@ onUnmounted(() => {
         }"
         @focus="onCompactFocus"
         @blur="onCompactBlur"
-        @click="onCompactClick; trackCursor"
+        @click="onCompactClick"
         @keyup="trackCursor"
         @select="trackCursor"
         @paste="onPaste"
@@ -501,7 +502,7 @@ onUnmounted(() => {
       </select>
 
       <button
-        class="shrink-0 px-5 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold"
+        class="shrink-0 px-5 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold btn-press"
         :class="{ 'min-h-[44px]': screenSize === 'mobile' }"
         :disabled="!text.trim()"
         @click="submit"
@@ -512,14 +513,15 @@ onUnmounted(() => {
 
     <!-- ── Expanded mode (non-modal: no backdrop overlay) ── -->
     <Teleport to="body">
-      <div
-        v-if="isExpanded"
-        class="fixed z-50 bg-white border border-slate-200 shadow-elevated flex flex-col overflow-hidden"
-        :class="isFullscreen
-          ? 'inset-4 rounded-2xl'
-          : 'bottom-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl sm:w-full sm:top-24 rounded-2xl'"
-        :style="isFullscreen ? {} : { maxHeight: '80vh', paddingBottom: 'env(safe-area-inset-bottom)' }"
-      >
+      <Transition name="editor-expand">
+        <div
+          v-if="isExpanded"
+          class="fixed z-50 bg-white border border-slate-200 shadow-elevated flex flex-col overflow-hidden"
+          :class="isFullscreen
+            ? 'inset-4 rounded-2xl'
+            : 'bottom-4 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-2xl sm:w-full sm:top-24 rounded-2xl'"
+          :style="isFullscreen ? {} : { maxHeight: '80vh', paddingBottom: 'env(safe-area-inset-bottom)' }"
+        >
         <!-- Toolbar header -->
         <div class="flex items-center gap-1 px-4 py-3 border-b border-border-subtle shrink-0">
           <button class="toolbar-btn font-bold" @click="tipTapBold" title="Bold">B</button>
@@ -600,7 +602,7 @@ onUnmounted(() => {
             </span>
           </div>
           <button
-            class="px-6 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold"
+            class="px-6 py-2.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 hover:shadow-md transition-all disabled:opacity-30 font-semibold btn-press"
             :class="{ 'min-h-[44px]': screenSize === 'mobile' }"
             :disabled="!text.trim()"
             @click="collapse(); submit()"
@@ -609,11 +611,22 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
-    </Teleport>
-  </div>
+    </Transition>
+  </Teleport>
+</div>
 </template>
 
 <style scoped>
+.editor-expand-enter-active,
+.editor-expand-leave-active {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.editor-expand-enter-from,
+.editor-expand-leave-to {
+  opacity: 0;
+  transform: scale(0.96) translateY(12px);
+}
+
 .toolbar-btn {
   display: inline-flex;
   align-items: center;

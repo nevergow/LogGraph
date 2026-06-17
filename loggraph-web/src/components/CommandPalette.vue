@@ -19,6 +19,7 @@ interface Command {
   label: string
   shortcut?: string
   category: string
+  icon?: string
 }
 
 interface SearchResult {
@@ -28,29 +29,65 @@ interface SearchResult {
 }
 
 const allCommands: Command[] = [
-  { id: 'view-project', label: 'Go to Project View', category: 'Navigation' },
-  { id: 'view-timeline', label: 'Go to Timeline View', category: 'Navigation' },
-  { id: 'graph', label: 'Open Knowledge Graph', category: 'Panels' },
-  { id: 'ai-report', label: 'AI Report', category: 'Panels' },
-  { id: 'webhooks', label: 'Webhook Settings', category: 'Panels' },
-  { id: 'clear-filters', label: 'Clear All Filters', category: 'Actions' },
-  { id: 'new-entry', label: 'New Log Entry', category: 'Actions' },
+  { id: 'view-project', label: 'Go to Project View', category: 'Navigation', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
+  { id: 'view-timeline', label: 'Go to Timeline View', category: 'Navigation', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+  { id: 'graph', label: 'Open Knowledge Graph', category: 'Panels', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+  { id: 'ai-report', label: 'AI Report', category: 'Panels', icon: 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z' },
+  { id: 'webhooks', label: 'Webhook Settings', category: 'Panels', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
+  { id: 'clear-filters', label: 'Clear All Filters', category: 'Actions', icon: 'M6 18L18 6M6 6l12 12' },
+  { id: 'new-entry', label: 'New Log Entry', category: 'Actions', icon: 'M12 4v16m8-8H4' },
 ]
 
 const filteredCommands = ref<Command[]>(allCommands)
 const searchResults = ref<SearchResult[]>([])
+const recentCommands = ref<Command[]>([])
+const RECENT_KEY = 'loggraph:recentCommands'
 
 // Combined list for unified keyboard navigation
 interface ListItem {
-  type: 'command' | 'result' | 'section'
+  type: 'command' | 'result' | 'section' | 'recent'
   data?: Command | SearchResult
   label?: string
 }
 
 const listItems = ref<ListItem[]>([])
 
+function loadRecentCommands() {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY)
+    if (raw) {
+      const ids = JSON.parse(raw) as string[]
+      recentCommands.value = ids
+        .map(id => allCommands.find(c => c.id === id))
+        .filter(Boolean) as Command[]
+    }
+  } catch {
+    recentCommands.value = []
+  }
+}
+
+function saveRecentCommands() {
+  try {
+    const ids = recentCommands.value.map(c => c.id)
+    localStorage.setItem(RECENT_KEY, JSON.stringify(ids.slice(0, 5)))
+  } catch {}
+}
+
+function recordCommandUsage(cmdId: string) {
+  const cmd = allCommands.find(c => c.id === cmdId)
+  if (!cmd) return
+  recentCommands.value = [cmd, ...recentCommands.value.filter(c => c.id !== cmdId)].slice(0, 5)
+  saveRecentCommands()
+}
+
 function rebuildList() {
   const items: ListItem[] = []
+  if (!search.value.trim() && recentCommands.value.length > 0) {
+    items.push({ type: 'section', label: 'Recent' })
+    for (const c of recentCommands.value) {
+      items.push({ type: 'recent', data: c })
+    }
+  }
   if (filteredCommands.value.length > 0) {
     items.push({ type: 'section', label: 'Commands' })
     for (const c of filteredCommands.value) {
@@ -126,8 +163,10 @@ function executeCurrent() {
   const items = getSelectableItems()
   const item = items[selectedIndex.value]
   if (!item) return
-  if (item.type === 'command') {
-    emit('command', (item.data as Command).id)
+  if (item.type === 'command' || item.type === 'recent') {
+    const cmdId = (item.data as Command).id
+    recordCommandUsage(cmdId)
+    emit('command', cmdId)
   } else if (item.type === 'result') {
     emit('select-block', (item.data as SearchResult).id)
   }
@@ -173,6 +212,7 @@ function onGlobalKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   document.addEventListener('keydown', onGlobalKeydown)
+  loadRecentCommands()
   rebuildList()
 })
 onUnmounted(() => {
@@ -223,16 +263,27 @@ function formatTime(ts: string): string {
             </div>
             <div
               v-else
-              class="flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer transition-colors"
+              class="flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer transition-colors"
               :class="selectedIndex === getSelectableItems().indexOf(item) ? 'bg-accent-50 text-accent-700' : 'text-text-primary hover:bg-surface-100'"
               @click="executeCurrent()"
               @mouseenter="selectedIndex = getSelectableItems().indexOf(item)"
             >
-              <template v-if="item.type === 'command'">
-                <span>{{ (item.data as Command).label }}</span>
+              <template v-if="item.type === 'command' || item.type === 'recent'">
+                <div
+                  class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  :class="selectedIndex === getSelectableItems().indexOf(item) ? 'bg-accent-100 text-accent-700' : 'bg-surface-100 text-text-muted'"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="(item.data as Command).icon" />
+                  </svg>
+                </div>
+                <span class="flex-1">{{ (item.data as Command).label }}</span>
                 <span class="text-[10px] text-text-muted">{{ (item.data as Command).category }}</span>
               </template>
               <template v-else-if="item.type === 'result'">
+                <svg class="w-4 h-4 text-text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
                 <span class="truncate flex-1">{{ (item.data as SearchResult).title }}</span>
                 <span class="text-[10px] text-text-muted font-mono ml-3 shrink-0">{{ formatTime((item.data as SearchResult).created_at) }}</span>
               </template>
